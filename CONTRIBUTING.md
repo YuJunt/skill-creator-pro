@@ -5,7 +5,7 @@
 ## 开发环境搭建
 
 ### 前置要求
-- Python 3.7+（dataclasses 要求）
+- Python 3.8+（dataclasses 要求）
 - pytest（运行测试）
 - bash（打包脚本）
 

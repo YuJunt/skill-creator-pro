@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-版本: v1.0.0 | 许可证: MIT | 最低Python: 3.7+
+版本: v1.0.0 | 许可证: MIT | 最低Python: 3.8+
 
 create_skill.py - skill-creator-pro 编排脚本（统一入口，强制顺序执行）
 
@@ -30,9 +30,9 @@ import subprocess
 import sys
 from datetime import datetime
 
-# 最低Python版本检查（dataclasses需要3.7+）
-if sys.version_info < (3, 7):
-    print(f"❌ Python版本过低: {sys.version.split()[0]}，需要 Python 3.7+", file=sys.stderr)
+# 最低Python版本检查（dataclasses需要3.8+）
+if sys.version_info < (3, 8):
+    print(f"❌ Python版本过低: {sys.version.split()[0]}，需要 Python 3.8+", file=sys.stderr)
     print("💡 请升级Python后重试", file=sys.stderr)
     sys.exit(2)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-版本: v1.0.0 | 许可证: MIT | 最低Python: 3.7+
+版本: v1.0.0 | 许可证: MIT | 最低Python: 3.8+
 
 output_validator.py - skill-creator-pro 输出校验脚本
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-版本: v1.0.0 | 许可证: MIT | 最低Python: 3.7+
+版本: v1.0.0 | 许可证: MIT | 最低Python: 3.8+
 
 专业版技能模板生成脚本（Skill Initializer Pro）
 

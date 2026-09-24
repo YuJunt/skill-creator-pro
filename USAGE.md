@@ -256,7 +256,7 @@ A: 识别核心工作流（保留在SKILL.md），细节移到references/，在S
 A: 运行4个校验脚本：validate_skill.py（规范）+ audit_skill.py（审计，目标≥32分）+ security_scan.py（安全，目标0高风险）+ output_validator.py（输出）。
 
 ### Q: 支持哪些Python版本？
-A: Python 3.7+（因为使用了dataclasses）。已在3.7-3.12上测试。
+A: Python 3.8+（因为使用了dataclasses）。已在3.8-3.12上测试。
 
 ### Q: 支持Windows/macOS吗？
 A: 所有Python脚本跨平台。package.sh需要bash环境（Windows上用Git Bash或WSL）。
