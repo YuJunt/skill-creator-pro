@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头的 tag 时触发（如 v1.0.0, v1.1.0）
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write  # 创建 Release 需要写权限
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史，用于生成 changelog
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+          cache-dependency-path: '**/requirements*.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run validation
+        run: |
+          echo "=== 规范校验 ==="
+          python scripts/validate_skill.py .
+          echo ""
+          echo "=== 安全扫描 ==="
+          python scripts/security_scan.py . --json
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v --tb=short
+
+      - name: Build package
+        run: |
+          chmod +x scripts/package.sh
+          bash scripts/package.sh --output dist/
+
+      - name: Verify package
+        run: |
+          echo "=== 打包产物验证 ==="
+          ls -lh dist/
+          echo ""
+          echo "=== zip完整性检查 ==="
+          unzip -t dist/*.zip | tail -5
+          echo ""
+          echo "=== 文件数统计 ==="
+          unzip -l dist/*.zip | tail -1
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "发布版本: $VERSION"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: skill-creator-pro ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          generate_release_notes: true  # 自动生成 Release Notes（基于PR）
+          files: |
+            dist/*.zip
+          fail_on_unmatched_files: true  # 文件不匹配时失败
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
