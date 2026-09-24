@@ -83,14 +83,24 @@ if [ ! -f "$SKILL_DIR/SKILL.md" ]; then
 fi
 ok "技能目录有效"
 
-# 步骤2：读取版本号
+# 步骤2：读取版本号（使用python，更跨平台兼容）
 if [ -z "$VERSION" ]; then
-    # 尝试多种格式匹配版本号
-    VERSION=$(grep -oP '(?:版本|version)\D*\K[vV]?[0-9]+\.[0-9]+\.[0-9]+' "$SKILL_DIR/SKILL.md" 2>/dev/null | head -1)
-    if [ -z "$VERSION" ]; then
-        # 备用：直接匹配vX.Y.Z格式
-        VERSION=$(grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' "$SKILL_DIR/SKILL.md" 2>/dev/null | head -1)
-    fi
+    VERSION=$(python3 -c "
+import re, sys
+try:
+    with open('$SKILL_DIR/SKILL.md', 'r', encoding='utf-8') as f:
+        content = f.read()
+    # 匹配版本号格式：版本: v1.0.0 或 版本: 1.0.0
+    m = re.search(r'版本[：:]\s*v?([0-9]+\.[0-9]+\.[0-9]+)', content)
+    if m:
+        print(m.group(1))
+    else:
+        m = re.search(r'v([0-9]+\.[0-9]+\.[0-9]+)', content)
+        if m:
+            print(m.group(1))
+except:
+    pass
+" 2>/dev/null)
     if [ -z "$VERSION" ]; then
         VERSION="unknown"
         warn "无法从SKILL.md读取版本号，使用 'unknown'"
