@@ -69,6 +69,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# 将输出目录转为绝对路径（避免后续cd导致相对路径错误）
+if [[ "$OUTPUT_DIR" != /* ]]; then
+    OUTPUT_DIR="$(pwd)/$OUTPUT_DIR"
+fi
+
 echo ""
 echo "============================================================"
 echo "📦 skill-creator-pro 打包脚本"
@@ -135,13 +140,15 @@ fi
 # 步骤5：创建zip包
 SKILL_NAME=$(basename "$SKILL_DIR")
 ARCHIVE_NAME="${SKILL_NAME}-${VERSION}.zip"
-ARCHIVE_PATH="$OUTPUT_DIR/$ARCHIVE_NAME"
-
-info "创建压缩包: $ARCHIVE_PATH"
-mkdir -p "$OUTPUT_DIR"
 
 # 切换到上级目录，确保zip包内路径正确
 cd "$(dirname "$SKILL_DIR")"
+
+# 创建输出目录（在切换目录后创建，确保相对路径正确）
+mkdir -p "$OUTPUT_DIR"
+ARCHIVE_PATH="$OUTPUT_DIR/$ARCHIVE_NAME"
+
+info "创建压缩包: $ARCHIVE_PATH"
 zip -r -q "$ARCHIVE_PATH" "$SKILL_NAME/" \
     -x "*/__pycache__/*" \
     -x "*.pyc" \
