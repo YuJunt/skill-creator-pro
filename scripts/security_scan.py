@@ -190,6 +190,22 @@ class SecurityScanner:
     # 跳过的目录
     SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.venv', 'venv', 'dist', 'build', 'tests'}
 
+    # 文件写入白名单：这些脚本/目录的文件写入是正常功能（创建工具/示例），跳过other风险检测
+    FILE_WRITE_WHITELIST = {
+        "scripts/init_skill_pro.py",   # 模板生成，正常写入文件
+        "scripts/create_skill.py",      # 创建技能，正常写入评估用例
+        "scripts/upgrade_skill.py",     # 升级技能，正常写入文件
+        "scripts/templates.py",          # 模板库，包含写入文件的模板代码
+    }
+
+    def _is_file_write_whitelisted(self, rel_path: str) -> bool:
+        """判断文件是否在文件写入白名单中（包括examples目录下的所有文件）"""
+        if rel_path in self.FILE_WRITE_WHITELIST:
+            return True
+        if rel_path.startswith("examples" + os.sep):
+            return True
+        return False
+
     def __init__(self, skill_path: str):
         self.skill_path = os.path.abspath(skill_path)
         self.report = SecurityReport(skill_path=skill_path)
@@ -261,9 +277,10 @@ class SecurityScanner:
         if not is_reference_doc:
             self._scan_patterns(lines, rel_path, "dangerous_code", DANGEROUS_CODE_PATTERNS)
             if not is_security_tool:
-                # 安全工具跳过data_leak和other（检测逻辑如if "webhook" in content会被误报）
                 self._scan_patterns(lines, rel_path, "data_leak", DATA_LEAK_PATTERNS)
-                self._scan_patterns(lines, rel_path, "other", OTHER_RISK_PATTERNS)
+                # 文件写入白名单：创建工具/示例的文件写入是正常功能，跳过other风险检测
+                if not self._is_file_write_whitelisted(rel_path):
+                    self._scan_patterns(lines, rel_path, "other", OTHER_RISK_PATTERNS)
 
         # 检查Python脚本是否有基本的错误处理
         if filepath.endswith('.py') and len(lines) > 20:
