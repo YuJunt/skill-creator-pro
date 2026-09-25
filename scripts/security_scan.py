@@ -190,12 +190,14 @@ class SecurityScanner:
     # 跳过的目录
     SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.venv', 'venv', 'dist', 'build', 'tests'}
 
-    # 文件写入白名单：这些脚本/目录的文件写入是正常功能（创建工具/示例），跳过other风险检测
+    # 文件写入白名单：这些脚本/目录的文件写入是正常功能（创建工具/示例/审计），跳过other风险检测
     FILE_WRITE_WHITELIST = {
         "scripts/init_skill_pro.py",   # 模板生成，正常写入文件
         "scripts/create_skill.py",      # 创建技能，正常写入评估用例
         "scripts/upgrade_skill.py",     # 升级技能，正常写入文件
         "scripts/templates.py",          # 模板库，包含写入文件的模板代码
+        "scripts/release_audit.py",     # 发布审计，正常写入审计报告
+        "scripts/run_eval.py",          # 评估脚本，正常写入评估结果
     }
 
     def _is_file_write_whitelisted(self, rel_path: str) -> bool:
