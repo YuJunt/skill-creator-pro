@@ -33,7 +33,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 @pytest.fixture
 def tmp_skill_dir():
     """创建临时技能目录，测试后自动清理"""
-    tmpdir = tempfile.mkdtemp(prefix="pl3_test_")
+    tmpdir = tempfile.mkdtemp(prefix="scp_test_")
     skill_dir = os.path.join(tmpdir, "test-skill")
     os.makedirs(skill_dir)
     # 创建最小SKILL.md（包含渐进式披露章节，通过output_validator）
@@ -70,7 +70,7 @@ description: "测试技能，用于单元测试。触发词：测试。适用于
 @pytest.fixture
 def empty_dir():
     """空目录"""
-    tmpdir = tempfile.mkdtemp(prefix="pl3_empty_")
+    tmpdir = tempfile.mkdtemp(prefix="scp_empty_")
     yield tmpdir
     shutil.rmtree(tmpdir, ignore_errors=True)
 

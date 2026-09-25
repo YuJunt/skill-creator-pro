@@ -397,6 +397,12 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON格式输出")
     args = parser.parse_args()
 
+    # 提前检查路径是否存在，避免后续检查输出不完整
+    if not os.path.isdir(args.skill_path):
+        print(f"❌ 技能目录不存在: {args.skill_path}", file=sys.stderr)
+        print(f"💡 请检查路径是否正确，或使用相对路径/绝对路径", file=sys.stderr)
+        sys.exit(1)
+
     result = validate_skill(args.skill_path)
     print_result(result, output_json=args.json)
 

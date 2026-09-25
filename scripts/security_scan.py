@@ -240,9 +240,15 @@ class SecurityScanner:
             ))
             return
 
-        # 自跳过：如果是安全扫描工具本身（包含模式定义），跳过避免误报
+        # 自跳过：如果是安全扫描工具本身（包含模式定义），完全跳过避免误报
         if "INJECTION_PATTERNS =" in content or "DANGEROUS_CODE_PATTERNS =" in content:
             return
+
+        # 安全/审计/校验工具（除security_scan.py外）的检测逻辑会被误报
+        # 跳过data_leak和other检测，但保留injection/hidden_instruction/dangerous_code检测
+        is_security_tool = rel_path in (
+            "scripts/audit_skill.py", "scripts/validate_skill.py", "scripts/output_validator.py"
+        )
 
         # 对每类模式进行扫描
         # references目录下的文档是安全检查清单/方法论，包含危险代码示例是正常的
@@ -254,8 +260,10 @@ class SecurityScanner:
 
         if not is_reference_doc:
             self._scan_patterns(lines, rel_path, "dangerous_code", DANGEROUS_CODE_PATTERNS)
-            self._scan_patterns(lines, rel_path, "data_leak", DATA_LEAK_PATTERNS)
-            self._scan_patterns(lines, rel_path, "other", OTHER_RISK_PATTERNS)
+            if not is_security_tool:
+                # 安全工具跳过data_leak和other（检测逻辑如if "webhook" in content会被误报）
+                self._scan_patterns(lines, rel_path, "data_leak", DATA_LEAK_PATTERNS)
+                self._scan_patterns(lines, rel_path, "other", OTHER_RISK_PATTERNS)
 
         # 检查Python脚本是否有基本的错误处理
         if filepath.endswith('.py') and len(lines) > 20:
@@ -383,6 +391,12 @@ def main():
     parser.add_argument("--fail-on", choices=["high", "medium", "low"], default=None,
                         help="发现指定级别及以上风险时exit 1（用于CI/CD门禁）")
     args = parser.parse_args()
+
+    # 提前检查路径是否存在，避免输出空扫描报告
+    if not os.path.isdir(args.skill_path):
+        print(f"❌ 技能目录不存在: {args.skill_path}", file=sys.stderr)
+        print(f"💡 请检查路径是否正确，或使用相对路径/绝对路径", file=sys.stderr)
+        sys.exit(1)
 
     scanner = SecurityScanner(args.skill_path)
     report = scanner.scan()

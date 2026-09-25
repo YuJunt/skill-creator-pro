@@ -90,6 +90,19 @@ def audit_skill(skill_path):
     return result.stdout
 
 
+def validate_output(skill_path, mode="optimize"):
+    """步骤：输出格式校验（output_validator.py）——硬门禁，校验不通过脚本返回非0，run_command自动抛出异常"""
+    output_validator = os.path.join(SCRIPT_DIR, "output_validator.py")
+    if not os.path.isfile(output_validator):
+        print("⚠️  output_validator.py 不存在，跳过输出格式校验")
+        return
+    # run_command会在returncode != 0时自动抛出RuntimeError，不需要额外文本判断
+    run_command(
+        [sys.executable, output_validator, skill_path, "--mode", mode],
+        "输出格式校验（output_validator.py）"
+    )
+
+
 def create_skill(skill_name, output_dir, philosophy="mixed", title=None):
     """模式：新建技能"""
     print(f"\n{'#'*60}")
@@ -167,7 +180,7 @@ def optimize_skill(skill_path):
     # 步骤2：深度审计
     audit_skill(skill_path)
 
-    # 步骤3：安全扫描
+    # 步骤3：安全扫描（硬门禁：高风险问题必须中止）
     security_script = os.path.join(SCRIPT_DIR, "security_scan.py")
     if os.path.isfile(security_script):
         sec_result = run_command(
@@ -175,12 +188,17 @@ def optimize_skill(skill_path):
             "安全扫描（security_scan.py）"
         )
         if "高风险: 0" not in sec_result.stdout:
-            print("⚠️  安全扫描发现高风险问题，建议修复后再发布")
+            raise RuntimeError("❌ 安全扫描发现高风险问题，必须修复后才能继续")
+        if "中风险: 0" not in sec_result.stdout:
+            print("⚠️  安全扫描发现中风险问题，建议修复后再发布")
+
+    # 步骤4：输出格式校验（硬门禁）
+    validate_output(skill_path, mode="optimize")
 
     # 完成
     print(f"\n{'#'*60}")
     print(f"# ✅ 技能优化验证完成: {skill_path}")
-    print(f"# 规范校验和深度审计都已通过")
+    print(f"# 规范校验/深度审计/安全扫描/输出校验全部通过")
     print(f"# 💡 经验沉淀: 优化完成后建议复盘，提取优化经验写入案例库")
     print(f"{'#'*60}")
 
@@ -204,9 +222,13 @@ def review_skill(skill_path):
     # 步骤2：深度审计
     audit_result = audit_skill(skill_path)
 
+    # 步骤3：输出格式校验（硬门禁）
+    validate_output(skill_path, mode="review")
+
     # 完成
     print(f"\n{'#'*60}")
     print(f"# ✅ 技能评审完成: {skill_path}")
+    print(f"# 规范校验/深度审计/输出校验全部通过")
     print(f"# 评审结果已输出在上文")
     print(f"# 💡 经验沉淀: 评审完成后建议提取评审经验（常见问题/最佳实践）写入案例库")
     print(f"{'#'*60}")
