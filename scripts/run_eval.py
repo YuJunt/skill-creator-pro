@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+import contextlib
 
 # 技能根目录
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -167,15 +168,30 @@ def main():
     evals = load_evals()
     results = {}
 
+    # --json模式：抑制所有普通文本输出，只输出纯JSON
+    if args.json:
+        try:
+            with open(os.devnull, "w") as devnull:
+                with contextlib.redirect_stdout(devnull):
+                    if args.type in ("trigger", "all"):
+                        results["trigger"] = run_trigger_eval(evals)
+                    if args.type in ("selection", "all"):
+                        results["selection"] = run_selection_eval(evals)
+                    if args.type in ("edge", "all"):
+                        results["edge"] = run_edge_eval(evals)
+        except Exception as e:
+            print(json.dumps({"error": f"评估执行失败: {str(e)}"}, ensure_ascii=False), file=sys.stderr)
+            sys.exit(1)
+        # 只输出纯JSON，不带任何前缀文本
+        print(json.dumps(results, ensure_ascii=False, indent=2))
+        return
+
     if args.type in ("trigger", "all"):
         results["trigger"] = run_trigger_eval(evals)
     if args.type in ("selection", "all"):
         results["selection"] = run_selection_eval(evals)
     if args.type in ("edge", "all"):
         results["edge"] = run_edge_eval(evals)
-
-    if args.json:
-        print("\n" + json.dumps(results, ensure_ascii=False, indent=2))
 
     print("\n" + "=" * 60)
     print("✅ 评估完成")
