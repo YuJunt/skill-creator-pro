@@ -102,6 +102,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 迁移升级 | `python3 scripts/create_skill.py upgrade <skill-path> --apply` |
 | 规范校验 | `python3 scripts/validate_skill.py <skill-path>` |
 | 安全扫描 | `python3 scripts/security_scan.py <skill-path>` |
+| 供应链扫描 | `python3 scripts/supply_chain_scan.py <skill-path> --generate-sbom` |
+| 评估测试 | `python3 scripts/run_eval.py --type all` |
+| 发布审计 | `python3 scripts/release_audit.py --skill <skill-path>` |
 | 打包发布 | `bash scripts/package.sh --output <dir>` |
 
 > **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/exit-codes.md`

@@ -198,6 +198,7 @@ class SecurityScanner:
         "scripts/templates.py",          # 模板库，包含写入文件的模板代码
         "scripts/release_audit.py",     # 发布审计，正常写入审计报告
         "scripts/run_eval.py",          # 评估脚本，正常写入评估结果
+        "scripts/supply_chain_scan.py", # 供应链扫描，正常生成SBOM文件
     }
 
     def _is_file_write_whitelisted(self, rel_path: str) -> bool:
