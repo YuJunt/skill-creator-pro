@@ -104,49 +104,146 @@ def extract_dependencies(skill_path):
     return all_deps
 
 
-def version_affected(version, affected_ranges):
-    """简化版版本匹配（实际应使用语义化版本库）"""
-    if version == "*" or not version:
-        return True  # 未指定版本，默认可能受影响
-    # 简化：只检查 < 范围
+def parse_version(version_str):
+    """解析版本号为数字元组，如 '2.20.1' -> (2, 20, 1)"""
+    parts = re.findall(r"\d+", version_str)[:3]
+    nums = [int(p) for p in parts]
+    while len(nums) < 3:
+        nums.append(0)
+    return tuple(nums)
+
+
+def parse_version_constraint(constraint_str):
+    """
+    解析版本约束，返回 (operator, version) 列表。
+    支持：==, !=, <=, >=, <, >, ~=, 以及逗号分隔的多约束（如 >=1.0,<2.0）
+    无约束或 * 返回 []
+    """
+    if not constraint_str or constraint_str.strip() in ("*", "latest", ""):
+        return []
+
+    constraints = []
+    # 分割多约束（逗号分隔）
+    parts = re.split(r",", constraint_str)
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        # 匹配操作符和版本号
+        match = re.match(r"^(==|!=|<=|>=|<|>|~=)\s*(.+)$", part)
+        if match:
+            op = match.group(1)
+            ver = match.group(2).strip()
+            constraints.append((op, ver))
+        else:
+            # 没有操作符，当作 == 处理
+            constraints.append(("==", part))
+    return constraints
+
+
+def version_affected(version_constraint, affected_ranges):
+    """
+    判断版本约束是否可能包含受影响的版本。
+
+    返回值：
+      - True: 确定受影响
+      - "maybe": 可能受影响（建议锁定版本后重新扫描）
+      - False: 确定不受影响
+
+    逻辑：
+      1. 无版本约束（*）-> maybe（可能受影响）
+      2. 解析约束，提取上限（</<=）和下限（>/>=）
+      3. 漏洞影响范围通常是 <某个版本
+      4. 如果约束上限 <= 漏洞影响上限 -> 确定受影响
+      5. 如果约束下限 >= 漏洞修复版本 -> 确定不受影响
+      6. 其他情况 -> maybe（可能受影响）
+    """
+    constraints = parse_version_constraint(version_constraint)
+
+    # 无版本约束，可能受影响
+    if not constraints:
+        return "maybe"
+
+    # 提取约束的上限和下限
+    upper_bound = None  # (version, inclusive)  inclusive=True 表示 <=，False 表示 <
+    lower_bound = None  # (version, inclusive)  inclusive=True 表示 >=，False 表示 >
+
+    for op, ver in constraints:
+        ver_tuple = parse_version(ver)
+        if op in ("<", "<="):
+            if upper_bound is None or ver_tuple < upper_bound[0]:
+                upper_bound = (ver_tuple, op == "<=")
+        elif op in (">", ">="):
+            if lower_bound is None or ver_tuple > lower_bound[0]:
+                lower_bound = (ver_tuple, op == ">=")
+        elif op == "==":
+            # 精确版本，直接比较
+            for range_str in affected_ranges:
+                if range_str.startswith("<"):
+                    limit = parse_version(range_str[1:].strip())
+                    if ver_tuple < limit:
+                        return True
+                elif range_str.startswith("<="):
+                    limit = parse_version(range_str[2:].strip())
+                    if ver_tuple <= limit:
+                        return True
+            return False
+        # ~= 和 != 暂不精确处理，当作可能受影响
+
+    # 处理漏洞影响范围（目前主要是 < 范围）
     for range_str in affected_ranges:
-        if range_str.startswith("<"):
-            try:
-                limit = range_str[1:].strip()
-                # 简单的版本比较（只比较数字部分）
-                def parse_ver(v):
-                    return [int(x) for x in re.findall(r"\d+", v)[:3]]
-                current = parse_ver(version)
-                target = parse_ver(limit)
-                # 补齐长度
-                max_len = max(len(current), len(target))
-                current.extend([0] * (max_len - len(current)))
-                target.extend([0] * (max_len - len(target)))
-                if current < target:
-                    return True
-            except Exception:
-                pass
-    return False
+        if range_str.startswith("<="):
+            vuln_limit = parse_version(range_str[2:].strip())
+            vuln_inclusive = True
+        elif range_str.startswith("<"):
+            vuln_limit = parse_version(range_str[1:].strip())
+            vuln_inclusive = False
+        else:
+            continue
+
+        # 如果有上限，且上限 <= 漏洞影响上限 -> 确定受影响
+        # （约束范围内的版本都 <= 上限 <= 漏洞上限，因此都在漏洞影响范围内）
+        if upper_bound is not None:
+            if upper_bound[0] <= vuln_limit:
+                return True
+
+        # 如果有下限，且下限 >= 漏洞修复版本（即漏洞上限）-> 确定不受影响
+        if lower_bound is not None:
+            if lower_bound[0] > vuln_limit:
+                return False
+            if lower_bound[0] == vuln_limit and not lower_bound[1] and not vuln_inclusive:
+                return False
+
+    # 其他情况：可能受影响
+    return "maybe"
 
 
 def check_vulnerabilities(deps):
-    """检查已知漏洞"""
-    findings = []
+    """检查已知漏洞，返回 (confirmed_findings, maybe_findings)"""
+    confirmed = []
+    maybe = []
     for dep in deps:
         name = dep["name"]
         if name in KNOWN_VULNERABILITIES:
             vuln = KNOWN_VULNERABILITIES[name]
-            if version_affected(dep["version"], vuln["affected_versions"]):
-                findings.append({
-                    "package": name,
-                    "version": dep["version"],
-                    "severity": vuln["severity"],
-                    "cve": vuln["cve"],
-                    "description": vuln["description"],
-                    "source": dep["source"],
-                    "recommendation": f"升级 {name} 到最新安全版本"
-                })
-    return findings
+            result = version_affected(dep["version"], vuln["affected_versions"])
+            finding = {
+                "package": name,
+                "version": dep["version"],
+                "severity": vuln["severity"],
+                "cve": vuln["cve"],
+                "description": vuln["description"],
+                "source": dep["source"],
+                "recommendation": f"升级 {name} 到最新安全版本"
+            }
+            if result is True:
+                finding["confidence"] = "confirmed"
+                confirmed.append(finding)
+            elif result == "maybe":
+                finding["confidence"] = "maybe"
+                finding["recommendation"] = f"版本约束 '{dep['version']}' 可能包含受影响版本，建议锁定具体版本后重新扫描"
+                maybe.append(finding)
+    return confirmed, maybe
 
 
 def check_license_compliance(skill_path):
@@ -247,14 +344,19 @@ def main():
 
     # 步骤2：漏洞检测
     print("\n--- 步骤2: 已知漏洞检测 ---")
-    vuln_findings = check_vulnerabilities(deps)
-    if vuln_findings:
-        print(f"  ⚠️  发现 {len(vuln_findings)} 个已知漏洞")
-        for v in vuln_findings:
+    confirmed_vulns, maybe_vulns = check_vulnerabilities(deps)
+    if confirmed_vulns:
+        print(f"  🔴 确认 {len(confirmed_vulns)} 个已知漏洞")
+        for v in confirmed_vulns:
             icon = "🔴" if v["severity"] == "high" else "🟡"
             print(f"    {icon} {v['package']} {v['version']}: {v['cve']} - {v['description']}")
             print(f"       建议: {v['recommendation']}")
-    else:
+    if maybe_vulns:
+        print(f"  🟡 待确认 {len(maybe_vulns)} 个可能受影响的依赖（版本约束未锁定）")
+        for v in maybe_vulns:
+            print(f"    🟡 {v['package']} {v['version']}: {v['cve']} - {v['description']}")
+            print(f"       建议: {v['recommendation']}")
+    if not confirmed_vulns and not maybe_vulns:
         print("  ✅ 未发现已知漏洞")
 
     # 步骤3：许可证合规
@@ -268,10 +370,9 @@ def main():
         print("  ✅ 许可证合规")
 
     # 步骤4：生成SBOM
-    all_findings = vuln_findings + license_findings
     if args.generate_sbom:
         print("\n--- 步骤4: 生成SBOM ---")
-        sbom = generate_sbom(args.skill_path, deps, vuln_findings)
+        sbom = generate_sbom(args.skill_path, deps, confirmed_vulns)
         sbom_path = os.path.join(args.skill_path, "sbom.json")
         with open(sbom_path, "w", encoding="utf-8") as f:
             json.dump(sbom, f, ensure_ascii=False, indent=2)
@@ -279,23 +380,28 @@ def main():
         print(f"     格式: CycloneDX 1.4, 组件数: {len(sbom['components'])}, 漏洞数: {len(sbom['vulnerabilities'])}")
 
     # 汇总
+    all_vulns = confirmed_vulns + maybe_vulns
     print("\n" + "=" * 60)
     print("📊 扫描结果汇总")
     print("=" * 60)
-    high = sum(1 for f in vuln_findings if f.get("severity") == "high")
-    medium = sum(1 for f in vuln_findings if f.get("severity") == "medium") + sum(1 for f in license_findings if f.get("severity") == "medium")
+    high = sum(1 for f in all_vulns if f.get("severity") == "high" and f.get("confidence") == "confirmed")
+    medium = sum(1 for f in all_vulns if f.get("severity") == "medium") + sum(1 for f in license_findings if f.get("severity") == "medium")
+    maybe_count = len(maybe_vulns)
     print(f"  依赖总数: {len(deps)}")
-    print(f"  🔴 高危漏洞: {high}")
+    print(f"  🔴 确认高危漏洞: {high}")
     print(f"  🟡 中危问题: {medium}")
-    print(f"  状态: {'❌ 存在高危漏洞，必须修复' if high > 0 else '✅ 通过（无高危漏洞）'}")
+    if maybe_count > 0:
+        print(f"  🟡 待确认（版本未锁定）: {maybe_count}")
+    print(f"  状态: {'❌ 存在确认高危漏洞，必须修复' if high > 0 else '✅ 通过（无确认高危漏洞）'}")
 
     if args.json:
         print("\n" + json.dumps({
             "skill_path": args.skill_path,
             "dependencies": deps,
-            "vulnerabilities": vuln_findings,
+            "vulnerabilities_confirmed": confirmed_vulns,
+            "vulnerabilities_maybe": maybe_vulns,
             "license_findings": license_findings,
-            "summary": {"total_deps": len(deps), "high": high, "medium": medium, "passed": high == 0}
+            "summary": {"total_deps": len(deps), "high_confirmed": high, "medium": medium, "maybe": maybe_count, "passed": high == 0}
         }, ensure_ascii=False, indent=2))
 
     sys.exit(1 if high > 0 else 0)
