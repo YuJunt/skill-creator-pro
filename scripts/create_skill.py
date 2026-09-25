@@ -541,6 +541,19 @@ def main():
 
     args = parser.parse_args()
 
+    # P3: 路由行自动输出（硬校验——只要调用编排脚本，就一定会输出路由行）
+    # 即使LLM忘了手动输出路由行，脚本也会帮它补上
+    MODE_ROUTE_MAP = {
+        "create": "新建技能",
+        "optimize": "优化技能",
+        "review": "深度评审",
+        "test": "端到端测试",
+        "upgrade": "技能升级",
+    }
+    route_mode = MODE_ROUTE_MAP.get(args.command, args.command)
+    print(f"🔀 路由: {route_mode}")
+    print()
+
     try:
         if args.command == "create":
             result = create_skill(args.skill_name, args.path, args.philosophy, args.title)
