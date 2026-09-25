@@ -33,8 +33,6 @@ SKILL_MD_MIXED_TEMPLATE = '''---
 name: {skill_name}
 description: >
   {skill_description}
-  触发词："{trigger_words}"。
-  不适用于：{not_for}。
 ---
 
 <!--
@@ -291,8 +289,6 @@ SKILL_MD_CAPABILITY_TEMPLATE = '''---
 name: {skill_name}
 description: >
   {skill_description}
-  触发词："{trigger_words}"。
-  不适用于：{not_for}。
 ---
 
 <!--
@@ -475,8 +471,6 @@ SKILL_MD_PROCESS_TEMPLATE = '''---
 name: {skill_name}
 description: >
   {skill_description}
-  触发词："{trigger_words}"。
-  不适用于：{not_for}。
 ---
 
 <!--

@@ -126,11 +126,26 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         sys.exit(1)
 
     if philosophy == "capability":
-        skill_description = skill_description or f"{skill_title}工具。提供确定性命令行工具，封装核心功能。"
+        skill_description = skill_description or (
+            f"{skill_title}专业工具。基于确定性脚本封装核心功能，提供可靠、可复现的执行能力。"
+            f"当用户需要{skill_title}相关的确定性计算、批量处理或工具调用时使用。"
+            f"触发词：\"{skill_name}\"\"{skill_title}\"。"
+            f"不适用于：需要灵活判断或创造性思维的任务。"
+        )
     elif philosophy == "process":
-        skill_description = skill_description or f"{skill_title}方法论。编码完整工作流和checklist，指导agent按流程执行。"
+        skill_description = skill_description or (
+            f"{skill_title}方法论。编码完整工作流和检查清单，指导Agent按标准流程执行，确保不遗漏关键步骤。"
+            f"当用户需要{skill_title}相关的多步骤流程、标准化操作或质量保证时使用。"
+            f"触发词：\"{skill_name}\"\"{skill_title}\"。"
+            f"不适用于：单步简单操作或不需要流程约束的任务。"
+        )
     else:
-        skill_description = skill_description or f"{skill_title}专业处理。基于最佳实践，支持完整处理/快速执行/单步操作多种模式。"
+        skill_description = skill_description or (
+            f"{skill_title}专业处理。工具脚本与方法论结合，支持完整流程执行/快速操作/单步调试多种模式。"
+            f"当用户需要{skill_title}相关的分析、处理、优化或评审时使用。"
+            f"触发词：\"{skill_name}\"\"{skill_title}\"。"
+            f"不适用于：与{skill_title}无关的通用对话。"
+        )
     trigger_words = trigger_words or skill_name
     not_for = not_for or "其他不相关的任务"
 
