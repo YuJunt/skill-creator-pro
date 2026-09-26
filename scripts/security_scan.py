@@ -143,7 +143,7 @@ DATA_LEAK_PATTERNS = [
     (r"ghp_[a-zA-Z0-9]{36}", "硬编码GitHub Personal Access Token", "使用环境变量或GitHub Apps"),
     (r"xox[baprs]-[a-zA-Z0-9-]{10,}", "硬编码Slack Token", "使用环境变量"),
     (r"(?i)(password|passwd|pwd)\s*[:=]\s*['\"][^'\"]{6,}['\"]", "硬编码密码", "使用环境变量或密钥管理服务"),
-    (r"(?i)(api[_-]?key|secret|token|private[_-]?key)\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+    (r"(?i)(api[_-]?key|secret[_-]?key?|token|private[_-]?key|access[_-]?key)\s*[:=]\s*['\"][^'\"]{8,}['\"]",
      "硬编码密钥/令牌", "使用环境变量，不要在代码中硬编码"),
     (r"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----", "硬编码私钥", "使用密钥管理服务，不要硬编码私钥"),
     (r"(?i)(webhook|requestbin|ngrok|beeceptor|pipedream)", "外部数据接收服务：可能用于数据外泄",
@@ -189,6 +189,18 @@ class SecurityScanner:
 
     # 跳过的目录
     SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.venv', 'venv', 'dist', 'build', 'tests', 'htmlcov', '.pytest_cache', 'backup', 'assets', 'examples'}
+
+    # 跳过的文件模式（测试文件/报告文件/配置文件等）
+    SKIP_FILE_PATTERNS = [
+        'test_',           # 测试脚本
+        '_test.',          # 测试脚本
+        '-report.json',    # 测试报告
+        '-report.md',      # 测试报告
+        'performance-',    # 性能报告
+        'security-',       # 安全报告
+        '.coveragerc',     # 覆盖率配置
+        'pytest.ini',      # pytest配置
+    ]
 
     # 文件写入白名单：这些脚本/目录的文件写入是正常功能（创建工具/示例/审计），跳过other风险检测
     FILE_WRITE_WHITELIST = {
@@ -262,6 +274,10 @@ class SecurityScanner:
             dirs[:] = [d for d in dirs if d not in self.SKIP_DIRS]
 
             for filename in files:
+                # 跳过测试文件和报告文件
+                if any(pattern in filename for pattern in self.SKIP_FILE_PATTERNS):
+                    continue
+
                 ext = os.path.splitext(filename)[1].lower()
                 if ext not in self.SCAN_EXTENSIONS:
                     continue

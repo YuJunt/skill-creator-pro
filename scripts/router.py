@@ -115,13 +115,37 @@ DANGEROUS_PATTERNS = [
     r"绕过.*权限", r"越权", r"提权",
     # 恶意软件
     r"生成.*病毒", r"生成.*木马", r"生成.*恶意",
-    # 提示注入/越狱
+    # 提示注入/越狱（增强：覆盖实际攻击模式）
     r"提示注入", r"prompt\s*inject", r"越狱", r"jailbreak",
-    # 代码注入
+    r"忽略.*(之前|先前|所有|上述).*(指令|提示|规则|系统)",
+    r"ignore\s+(all\s+)?(previous|prior|above|foregoing)\s+(instructions?|prompts?|rules?)",
+    r"你现在是.*(没有限制|不受限制|可以做任何事)",
+    r"从现在开始.*(不需要|不用).*(遵守|遵循).*(安全|规则|限制)",
+    r"系统更新.*(安全|规则).*(禁用|关闭|绕过)",
+    r"reveal.*(system\s*prompt|instructions?)",
+    # 命令注入（增强：覆盖实际攻击模式）
     r"反向shell", r"reverse\s*shell", r"eval\(.*exec",
+    r"\$\(.*\)",  # 命令替换 $(...)
+    r"`[^`]+`",   # 反引号命令执行
+    r";\s*(cat|rm|ls|whoami|id|uname|nc|bash|sh|curl|wget)",
+    r"&&\s*(cat|rm|ls|whoami|id|uname|nc|bash|sh|curl|wget)",
+    r"\|\s*(nc|bash|sh|curl|wget)",  # 管道到危险命令
+    r"命令注入", r"command\s*inject",
+    # 路径遍历
+    r"\.\./\.\./", r"\.\.\\\.\.\\",
+    r"/etc/(passwd|shadow)", r"\\Windows\\System32",
+    r"路径遍历", r"path\s*traversal",
+    # XSS注入
+    r"<script", r"javascript:", r"onerror\s*=", r"onload\s*=",
+    r"xss", r"cross\s*site\s*script",
     # 安全漏洞
     r"硬编码.*(key|token|密码|私钥|secret)",
     r"违反.*(规则|法律|平台|政策)",
+    # 敏感信息
+    r"(api[_-]?key|secret[_-]?key|access[_-]?token|password)\s*=\s*['\"]",
+    r"sk-[a-zA-Z0-9]{20,}",  # OpenAI风格API密钥
+    r"ghp_[a-zA-Z0-9]{20,}",  # GitHub Personal Access Token
+    r"AKIA[0-9A-Z]{16}",  # AWS Access Key ID
 ]
 
 # 模糊阈值（低于此分数标记为模糊）

@@ -13,16 +13,21 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        exclude:
+          # Windows上Python 3.8可能有兼容性问题，排除
+          - os: windows-latest
+            python-version: "3.8"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -32,14 +37,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov
 
-      - name: Run pytest
+      - name: Run pytest (Ubuntu/macOS - full)
+        if: runner.os != 'Windows'
         run: |
           python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml
 
+      - name: Run pytest (Windows - skip shell-dependent)
+        if: runner.os == 'Windows'
+        run: |
+          python -m pytest tests/ -v --tb=short --ignore=tests/test_e2e_integration.py -k "not shell and not bash"
+
       - name: Upload coverage
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: coverage.xml
 
   lint:
