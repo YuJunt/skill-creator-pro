@@ -318,6 +318,137 @@ def generate_sbom(skill_path, deps, findings):
     return sbom
 
 
+def calculate_file_hash(file_path):
+    """计算文件的SHA-256哈希"""
+    import hashlib
+    try:
+        with open(file_path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        return None
+
+
+def generate_aibom(skill_path):
+    """生成AIBOM（AI Bill of Materials）——列出所有AI组件，带版本和哈希
+
+    AIBOM是最新的供应链安全概念，用于AI Agent技能的完整性验证。
+    参考：NVIDIA SkillSpector / Unit 42 BIV研究 / CycloneDX AI扩展
+
+    包含：
+    - 技能元数据（name/version/hash）
+    - SKILL.md（hash/行数）
+    - scripts/所有脚本（name/hash/行数）
+    - references/所有文档（name/hash/行数）
+    - examples/所有示例（name/hash）
+    - assets/所有资源（name/hash）
+    - 评估用例（name/hash）
+    """
+    from pathlib import Path
+    import hashlib
+    skill_path = Path(skill_path)
+    skill_name = skill_path.name
+
+    def scan_directory(dir_name, extensions=None):
+        """扫描目录下的文件，返回组件列表"""
+        components = []
+        dir_path = skill_path / dir_name
+        if not dir_path.exists():
+            return components
+
+        for file_path in sorted(dir_path.rglob("*")):
+            if not file_path.is_file():
+                continue
+            if extensions and file_path.suffix not in extensions:
+                continue
+            # 跳过缓存和临时文件
+            if "__pycache__" in str(file_path) or file_path.name.startswith("."):
+                continue
+
+            rel_path = str(file_path.relative_to(skill_path))
+            file_hash = calculate_file_hash(file_path)
+            try:
+                line_count = sum(1 for _ in open(file_path, "r", encoding="utf-8", errors="replace"))
+            except Exception:
+                line_count = 0
+
+            components.append({
+                "path": rel_path,
+                "name": file_path.name,
+                "sha256": file_hash,
+                "line_count": line_count,
+                "size_bytes": file_path.stat().st_size,
+            })
+        return components
+
+    # 技能整体哈希（SKILL.md + 所有脚本）
+    skill_hash_parts = []
+    skill_md = skill_path / "SKILL.md"
+    if skill_md.exists():
+        skill_hash_parts.append(calculate_file_hash(skill_md) or "")
+
+    scripts_dir = skill_path / "scripts"
+    if scripts_dir.exists():
+        for script in sorted(scripts_dir.glob("*.py")):
+            skill_hash_parts.append(calculate_file_hash(script) or "")
+
+    import hashlib
+    overall_hash = hashlib.sha256("".join(skill_hash_parts).encode()).hexdigest() if skill_hash_parts else None
+
+    aibom = {
+        "bomFormat": "AIBOM",
+        "specVersion": "1.0",
+        "version": 1,
+        "metadata": {
+            "timestamp": datetime.now().isoformat(),
+            "generator": {
+                "name": "skill-creator-pro",
+                "version": "2.1.0",
+                "tool": "supply_chain_scan.py"
+            },
+            "component": {
+                "type": "agent-skill",
+                "name": skill_name,
+                "sha256": overall_hash,
+                "description": "AI Bill of Materials for Agent Skill"
+            }
+        },
+        "core_files": [
+            {
+                "path": "SKILL.md",
+                "sha256": calculate_file_hash(skill_md) if skill_md.exists() else None,
+                "line_count": sum(1 for _ in open(skill_md, "r", encoding="utf-8")) if skill_md.exists() else 0,
+                "size_bytes": skill_md.stat().st_size if skill_md.exists() else 0,
+            }
+        ],
+        "scripts": scan_directory("scripts", extensions={".py", ".sh"}),
+        "references": scan_directory("references", extensions={".md", ".json", ".yaml", ".yml"}),
+        "examples": scan_directory("examples"),
+        "assets": scan_directory("assets"),
+        "tests": scan_directory("tests", extensions={".py"}),
+        "summary": {
+            "total_components": 0,  # 后面计算
+            "total_scripts": 0,
+            "total_references": 0,
+            "total_examples": 0,
+            "total_assets": 0,
+            "total_tests": 0,
+        }
+    }
+
+    # 计算汇总
+    aibom["summary"]["total_scripts"] = len(aibom["scripts"])
+    aibom["summary"]["total_references"] = len(aibom["references"])
+    aibom["summary"]["total_examples"] = len(aibom["examples"])
+    aibom["summary"]["total_assets"] = len(aibom["assets"])
+    aibom["summary"]["total_tests"] = len(aibom["tests"])
+    aibom["summary"]["total_components"] = (
+        1 + len(aibom["scripts"]) + len(aibom["references"]) +
+        len(aibom["examples"]) + len(aibom["assets"]) + len(aibom["tests"])
+    )
+
+    return aibom
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="skill-creator-pro 供应链安全扫描（依赖漏洞检测+SBOM生成）"
@@ -325,6 +456,7 @@ def main():
     parser.add_argument("skill_path", help="技能目录路径")
     parser.add_argument("--json", action="store_true", help="JSON格式输出")
     parser.add_argument("--generate-sbom", action="store_true", help="生成SBOM文件（sbom.json）")
+    parser.add_argument("--generate-aibom", action="store_true", help="生成AIBOM文件（aibom.json，AI组件清单）")
     args = parser.parse_args()
 
     if not os.path.isdir(args.skill_path):
@@ -378,6 +510,19 @@ def main():
             json.dump(sbom, f, ensure_ascii=False, indent=2)
         print(f"  ✅ SBOM已生成: {sbom_path}")
         print(f"     格式: CycloneDX 1.4, 组件数: {len(sbom['components'])}, 漏洞数: {len(sbom['vulnerabilities'])}")
+
+    # 步骤5：生成AIBOM（AI Bill of Materials）
+    if args.generate_aibom:
+        print("\n--- 步骤5: 生成AIBOM（AI组件清单）---")
+        aibom = generate_aibom(args.skill_path)
+        aibom_path = os.path.join(args.skill_path, "aibom.json")
+        with open(aibom_path, "w", encoding="utf-8") as f:
+            json.dump(aibom, f, ensure_ascii=False, indent=2)
+        print(f"  ✅ AIBOM已生成: {aibom_path}")
+        print(f"     格式: AIBOM 1.0, 总组件数: {aibom['summary']['total_components']}")
+        print(f"     脚本: {aibom['summary']['total_scripts']}, 文档: {aibom['summary']['total_references']}, 示例: {aibom['summary']['total_examples']}")
+        print(f"     测试: {aibom['summary']['total_tests']}, 资源: {aibom['summary']['total_assets']}")
+        print(f"     技能整体SHA-256: {aibom['metadata']['component']['sha256'][:16]}...")
 
     # 汇总
     all_vulns = confirmed_vulns + maybe_vulns
