@@ -33,13 +33,15 @@ allowed-tools:
 
 ---
 
-## 🔀 路由模式表（顶部已要求先输出路由行，此处为模式选择参考）
+## 🔀 路由模式表（渐进式披露的核心开关）
 
-### ⚠️ 安全预检（路由前必做，借鉴agent-plugin-creator）
+> **路由是渐进式披露的开关：路由确定后，才知道该读什么文档、用什么流程、输出什么格式。**
+>
+> **推荐使用 `python3 scripts/router.py "用户消息"` 自动路由，输出路由决策（模式+must_read+置信度+理由）。**
 
-> **在确定路由模式前，先判断是否为危险请求（adversarial）。如果是，路由行输出 `🔀 路由: 🚫拒绝`，下一行必须以 `REFUSED:` 开头，只提供安全替代方案，不执行任何创建/优化操作。**
+### ⚠️ 安全预检（路由前必做）
 
-**必须分类为🚫拒绝（adversarial）的情况**：
+> **在确定路由模式前，先判断是否为危险请求。如果是，路由行输出 `🔀 路由: 🚫拒绝`，下一行必须以 `REFUSED:` 开头，只提供安全替代方案。**
 
 | 危险类型 | 具体表现 | 安全替代方案 |
 |---------|---------|-------------|
@@ -49,19 +51,64 @@ allowed-tools:
 | **违反平台规则** | 要求创建违反豆包平台规则/法律法规的技能 | 拒绝，说明规则限制，建议合规方案 |
 | **危险代码** | 要求在脚本中包含eval/exec任意代码执行/命令注入/反向shell | 拒绝，说明安全风险，建议安全的替代实现 |
 
-**路由判定必须在交付报告中记录**：用户意图分类、选择/不选择技能创建的理由、被拒绝的危险要求及替代方案。
+---
+
+### 📋 四种模式完整路由表
+
+| 维度 | 🆕 新建技能 | 🔧 优化技能 | 🔍 深度评审 | 🧪 端到端测试 |
+|------|------------|------------|------------|--------------|
+| **触发词** | 创建、新建、从零开始、生成、搭建、初始化、create、new、generate、build、init | 优化、改进、重构、精简、升级、调优、完善、修改、调整、optimize、refactor、upgrade、improve | 评审、审计、规范检查、检查、审查、评估、诊断、分析、深度审计、review、audit、check、inspect、evaluate | 测试、实测、验证、压力测试、端到端、E2E、回归测试、跑测试、test、e2e、testing、verify、benchmark |
+| **must_read** | best-practices.md + design-philosophies.md + 36-element-checklist.md | 36-element-checklist.md + gotchas-collection.md + best-practices.md | 36-element-checklist.md + review-process-guide.md + best-practices.md | eval-practice.md + routing-mustread-test-cases.md + evaluation-guide.md |
+| **核心脚本** | create_skill.py + init_skill_pro.py + validate_skill.py | create_skill.py + validate_skill.py + audit_skill.py + output_validator.py | create_skill.py + validate_skill.py + audit_skill.py | create_skill.py + validate_skill.py + output_validator.py |
+| **工作流** | 1.需求分析→2.选择设计哲学→3.init_skill_pro生成模板→4.填充SKILL.md→5.validate校验→6.audit审计→7.交付 | 1.现状审计→2.识别问题→3.制定优化方案→4.执行优化→5.validate校验→6.audit审计→7.output_validator硬门禁→8.优化报告 | 1.读取技能→2.validate规范校验→3.audit深度审计（36项）→4.问题分级（高/中/低）→5.改进建议→6.评审报告 | 1.读取技能→2.语法检查→3.冒烟测试→4.端到端测试（4种模式）→5.回归测试→6.测试报告→7.改进建议 |
+| **输出格式** | 完整版：技能目录+SKILL.md+scripts/+references/+创建报告 | 完整版：优化后的技能+优化报告（问题清单+改进内容+验证结果） | 评审报告：评分（36项）+问题清单（高/中/低）+改进建议 | 测试报告：通过率+失败用例+改进建议 |
+| **边界情况** | 用户需求不明确→先问澄清问题；用户提供了旧技能→建议用optimize模式 | 技能不存在→建议先create；优化范围太大→建议分阶段 | 技能不存在→提示先创建；只有SKILL.md→只做文档评审 | 技能不存在→提示先创建；测试环境不完整→降级为冒烟测试 |
+| **置信度阈值** | 匹配≥1个核心触发词→high；只有上下文信号→medium；无明显信号→low/ambiguous | 同左 | 同左 | 同左 |
 
 ---
 
-| 模式 | 触发词 | must_read（必读文档+脚本） | 输出详略 |
-|------|--------|---------------------------|----------|
-| **🚫拒绝** | 上述5类危险请求 | 无（直接拒绝+替代方案） | 简短 |
-| **新建技能** | "创建技能""新建skill""从零开始" | `references/best-practices.md` + `references/design-philosophies.md` + `references/36-element-checklist.md` + `scripts/create_skill.py` | 完整版 |
-| **优化技能** | "优化技能""改进skill""重构" | `references/36-element-checklist.md` + `references/gotchas-collection.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 完整版 |
-| **深度评审** | "评审技能""技能审计""规范检查" | `references/36-element-checklist.md` + `references/review-process-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 评审报告 |
-| **端到端测试** | "测试技能""技能实测""E2E测试" | `references/eval-practice.md` + `references/routing-mustread-test-cases.md` + `references/evaluation-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 测试报告 |
+### ❓ 模糊请求处理
 
-**路由是渐进式披露的开关：路由确定后，才知道该读什么文档、用什么流程、输出什么格式。**
+当路由结果为 `ambiguous`（模糊）时：
+
+1. **列出备选模式**：按分数排序，列出top 3备选
+2. **询问用户**："你是想创建新技能、优化现有技能、还是评审/测试？"
+3. **根据用户回答路由**：用户明确后再走对应流程
+
+**常见模糊请求示例**：
+- "技能" → 只有关键词，无动作
+- "这个技能怎么样" → 可能是评审，也可能是优化建议
+- "帮我弄一下" → 动作不明确
+
+---
+
+### 🔧 路由脚本使用
+
+```bash
+# 自动路由（推荐）
+python3 scripts/router.py "用户消息"
+
+# JSON格式输出（用于脚本集成）
+python3 scripts/router.py "用户消息" --json
+
+# 详细输出（包含各模式分数和匹配关键词）
+python3 scripts/router.py "用户消息" --verbose
+
+# 运行内置测试用例（11个用例，验证路由准确率）
+python3 scripts/router.py --test
+```
+
+**路由输出结构**：
+```json
+{
+  "mode": "create|optimize|review|test|refuse|ambiguous",
+  "confidence": "high|medium|low",
+  "must_read": ["references/xxx.md"],
+  "reasoning": "路由理由",
+  "alternatives": ["optimize"],
+  "is_dangerous": false
+}
+```
 
 ### ⚠️ 强制执行规则（违反=输出无效）
 
