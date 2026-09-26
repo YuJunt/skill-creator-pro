@@ -146,6 +146,165 @@ def cmd_reset(args):
     print("✅ 使用记录已重置")
 
 
+def cmd_loop(args):
+    """Stop Hook循环验证：不通过就继续，直到通过或达到最大次数"""
+    usage = load_usage()
+    required = [s.strip() for s in args.required_steps.split(",")]
+    completed_steps = [s["step"] for s in usage["steps_completed"]]
+    missing = [s for s in required if s not in completed_steps]
+    
+    iteration = 0
+    max_iterations = args.max_iterations
+    
+    while missing and iteration < max_iterations:
+        iteration += 1
+        print()
+        print(f"🔄 第{iteration}次循环：仍有{len(missing)}步未完成")
+        print(f"   缺失步骤: {missing}")
+        print(f"   请继续执行，执行完后再次运行此命令")
+        print(f"   （按Ctrl+C退出循环）")
+        
+        # 等待用户执行
+        try:
+            input("   执行完成后按回车继续验证...")
+        except KeyboardInterrupt:
+            print("\n⏹️ 用户手动退出循环")
+            break
+        
+        # 重新加载usage
+        usage = load_usage()
+        completed_steps = [s["step"] for s in usage["steps_completed"]]
+        missing = [s for s in required if s not in completed_steps]
+    
+    if not missing:
+        print()
+        print(f"✅ 全部{len(required)}步已完成！循环了{iteration}次")
+        return 0
+    else:
+        print()
+        print(f"❌ 达到最大循环次数{max_iterations}，仍有{len(missing)}步未完成: {missing}")
+        return 1
+
+
+def cmd_budget(args):
+    """执行步骤预算：检查是否超过最大步骤数"""
+    usage = load_usage()
+    total_steps = len(usage["steps_completed"])
+    max_steps = args.max_steps
+    
+    result = {
+        "current_steps": total_steps,
+        "max_steps": max_steps,
+        "budget_used_pct": round(total_steps / max_steps * 100, 1) if max_steps > 0 else 0,
+        "remaining_steps": max_steps - total_steps,
+        "over_budget": total_steps > max_steps,
+    }
+    
+    if result["over_budget"]:
+        result["warning"] = f"⚠️ 已超过最大步骤数{max_steps}，当前{total_steps}步"
+    elif result["budget_used_pct"] > 80:
+        result["warning"] = f"⚠️ 步骤预算已用{result['budget_used_pct']}%，剩余{result['remaining_steps']}步"
+    else:
+        result["status"] = "✅ 步骤预算正常"
+    
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 1 if result["over_budget"] else 0
+
+
+def cmd_duplicate(args):
+    """重复动作检测：检测是否连续重复相同动作"""
+    usage = load_usage()
+    recent_actions = usage["steps_completed"][-10:]  # 最近10个动作
+    
+    if len(recent_actions) < 3:
+        print("✅ 动作历史不足3个，无法检测重复")
+        return 0
+    
+    # 检查最近3个动作是否相同
+    last_3 = [a["step"] for a in recent_actions[-3:]]
+    if len(set(last_3)) == 1:
+        print(f"🔴 重复动作警告：最近3次都是「{last_3[0]}」")
+        print(f"   你可能卡住了，尝试换个方法或寻求帮助")
+        return 1
+    
+    # 检查最近5个动作中重复率
+    last_5 = [a["step"] for a in recent_actions[-5:]]
+    from collections import Counter
+    counts = Counter(last_5)
+    max_repeat = max(counts.values())
+    
+    if max_repeat >= 4:
+        most_common = counts.most_common(1)[0][0]
+        print(f"🟡 重复动作警告：最近5次中「{most_common}」出现了{max_repeat}次")
+        print(f"   可能效率不高，考虑换个方法")
+        return 0
+    
+    print("✅ 未检测到重复动作模式")
+    return 0
+
+
+def cmd_focus(args):
+    """注意力衰减检测：检查是否跑偏了"""
+    usage = load_usage()
+    total_actions = len(usage["steps_completed"]) + len(usage["scripts_called"])
+    
+    # 简单的跑偏检测：如果做了很多步但没有关键步骤完成
+    if total_actions > 20 and len(usage["steps_completed"]) < 3:
+        print("🔴 注意力衰减警告：已执行很多动作，但关键步骤完成很少")
+        print(f"   总动作数: {total_actions}")
+        print(f"   完成步骤数: {len(usage['steps_completed'])}")
+        print(f"   建议：重新读取计划文件（plan.md），确认方向是否正确")
+        return 1
+    
+    if total_actions > 10 and len(usage["steps_completed"]) < 5:
+        print("🟡 注意力衰减警告：动作不少，但完成的步骤不多")
+        print(f"   总动作数: {total_actions}")
+        print(f"   完成步骤数: {len(usage['steps_completed'])}")
+        print(f"   建议：回顾一下，是否在做无用功")
+        return 0
+    
+    print("✅ 注意力状态正常，未检测到明显跑偏")
+    return 0
+
+
+def cmd_quantitative(args):
+    """定量阈值检查：检查是否达到最低标准"""
+    usage = load_usage()
+    issues = []
+    
+    # 定量标准
+    min_scripts_used = args.min_scripts or 3
+    min_docs_read = args.min_docs or 2
+    min_steps_completed = args.min_steps or 5
+    
+    scripts_used = len(set(s["step"] for s in usage["scripts_called"]))
+    docs_read = len(set(d["step"] for d in usage["docs_read"]))
+    steps_completed = len(usage["steps_completed"])
+    
+    if scripts_used < min_scripts_used:
+        issues.append(f"❌ 脚本使用不足：仅{scripts_used}个，最低要求{min_scripts_used}个")
+    
+    if docs_read < min_docs_read:
+        issues.append(f"❌ 文档阅读不足：仅{docs_read}个，最低要求{min_docs_read}个")
+    
+    if steps_completed < min_steps_completed:
+        issues.append(f"❌ 步骤完成不足：仅{steps_completed}步，最低要求{min_steps_completed}步")
+    
+    result = {
+        "scripts_used": scripts_used,
+        "min_scripts_required": min_scripts_used,
+        "docs_read": docs_read,
+        "min_docs_required": min_docs_read,
+        "steps_completed": steps_completed,
+        "min_steps_required": min_steps_completed,
+        "issues": issues,
+        "passed": len(issues) == 0,
+    }
+    
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["passed"] else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="专业级技能创建器 运行时保障（防LLM偷懒）")
     sub = parser.add_subparsers(dest="command")
@@ -166,6 +325,27 @@ def main():
     # reset
     sub.add_parser("reset", help="重置使用记录")
     
+    # loop（Stop Hook循环验证）
+    loop_p = sub.add_parser("loop", help="Stop Hook循环验证：不通过就继续")
+    loop_p.add_argument("--required-steps", required=True, help="必需步骤列表（逗号分隔）")
+    loop_p.add_argument("--max-iterations", type=int, default=10, help="最大循环次数（默认10）")
+    
+    # budget（执行步骤预算）
+    budget_p = sub.add_parser("budget", help="执行步骤预算检查")
+    budget_p.add_argument("--max-steps", type=int, required=True, help="最大步骤数")
+    
+    # duplicate（重复动作检测）
+    sub.add_parser("duplicate", help="重复动作检测")
+    
+    # focus（注意力衰减检测）
+    sub.add_parser("focus", help="注意力衰减检测（检查是否跑偏）")
+    
+    # quantitative（定量阈值检查）
+    quant_p = sub.add_parser("quantitative", help="定量阈值检查")
+    quant_p.add_argument("--min-scripts", type=int, help="最少脚本使用数")
+    quant_p.add_argument("--min-docs", type=int, help="最少文档阅读数")
+    quant_p.add_argument("--min-steps", type=int, help="最少步骤完成数")
+    
     args = parser.parse_args()
     
     if args.command == "track":
@@ -176,6 +356,16 @@ def main():
         cmd_report(args)
     elif args.command == "reset":
         cmd_reset(args)
+    elif args.command == "loop":
+        sys.exit(cmd_loop(args))
+    elif args.command == "budget":
+        sys.exit(cmd_budget(args))
+    elif args.command == "duplicate":
+        sys.exit(cmd_duplicate(args))
+    elif args.command == "focus":
+        sys.exit(cmd_focus(args))
+    elif args.command == "quantitative":
+        sys.exit(cmd_quantitative(args))
     else:
         parser.print_help()
 

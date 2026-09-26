@@ -110,7 +110,18 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 规范校验 | `python3 scripts/validate_skill.py <skill-path>` |
 | **运行时保障** | `python3 scripts/runtime_guard.py verify --required-steps "step1,step2,..."` |
 
-> **运行时保障（防LLM偷懒核心）**：每步执行后用 `runtime_guard.py track` 记录，提交前用 `runtime_guard.py verify` 验证所有必需步骤是否完成，用 `runtime_guard.py report` 查看工具使用率。详见 `references/runtime-guard-guide.md`
+> **运行时保障（防LLM偷懒核心，9个子命令）**：
+> - `track`：记录每步执行（script/doc/step）
+> - `verify`：提交前验证所有必需步骤是否完成
+> - `report`：生成工具使用率报告
+> - `loop`：Stop Hook循环验证，不通过就继续（最多10次）
+> - `budget`：执行步骤预算检查（最大步骤数）
+> - `duplicate`：重复动作检测（连续3次相同就警告）
+> - `focus`：注意力衰减检测（检查是否跑偏）
+> - `quantitative`：定量阈值检查（最少脚本/文档/步骤数）
+> - `reset`：重置使用记录
+>
+> 详见 `references/runtime-guard-guide.md`
 
 > **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/exit-codes.md`
 

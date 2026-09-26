@@ -29,6 +29,15 @@ import sys
 # 从templates模块导入所有模板字符串
 from templates import *  # noqa: F401,F403
 
+
+def _get_runtime_guard_template(skill_title):
+    """读取runtime_guard.py模板文件并替换{skill_title}"""
+    runtime_guard_path = os.path.join(os.path.dirname(__file__), "runtime_guard.py")
+    with open(runtime_guard_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return content.replace("专业级技能创建器", skill_title)
+
+
 def _generate_capability_main_script(skill_title):
     """生成Capability模式的核心工具脚本"""
     return f'''#!/usr/bin/env python3
@@ -191,7 +200,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
     if philosophy == "capability":
         # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障
         files["scripts/main.py"] = _generate_capability_main_script(skill_title)
-        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
+        files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
 
@@ -201,7 +210,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         files["references/checklist.md"] = CHECKLIST_TEMPLATE.format(skill_title=skill_title)
         files["scripts/orchestrator.py"] = ORCHESTRATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/validator.py"] = PROCESS_VALIDATOR_TEMPLATE.replace("{skill_title}", skill_title)
-        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
+        files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["examples/example-workflow.md"] = EXAMPLE_WORKFLOW_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
 
@@ -210,7 +219,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         files["scripts/main.py"] = _generate_capability_main_script(skill_title)
         files["scripts/orchestrator.py"] = ORCHESTRATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/validator.py"] = VALIDATOR_TEMPLATE.replace("{skill_title}", skill_title)
-        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
+        files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["references/best-practices.md"] = BEST_PRACTICES_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)

@@ -159,7 +159,114 @@ def final_delivery():
 
 ---
 
-## 四、为什么这不是"增加复杂度"
+## 四、五大新功能（v2.0扩展）
+
+基于最新业界研究（Ralph Loop/Attention Decay/Quantitative Thresholds），v2.0新增5个高级功能：
+
+### 4.1 loop（Stop Hook循环验证）
+
+**原理**：不满足完成标准就强制继续，直到满足标准或达到最大迭代次数。这是Ralph Loop模式的核心。
+
+```bash
+python3 runtime_guard.py loop --required-steps "step1,step2,step3" --max-iterations 10
+```
+
+**适用场景**：防止LLM过早放弃，必须做完所有步骤才算完成。
+
+---
+
+### 4.2 budget（执行步骤预算）
+
+**原理**：给agent设定明确的安全边界，防止失控。
+
+```bash
+python3 runtime_guard.py budget --max-steps 50
+```
+
+**输出示例**：
+```json
+{
+  "current_steps": 25,
+  "max_steps": 50,
+  "budget_used_pct": 50.0,
+  "remaining_steps": 25,
+  "over_budget": false
+}
+```
+
+**适用场景**：防止无限循环，控制token支出。
+
+---
+
+### 4.3 duplicate（重复动作检测）
+
+**原理**：检测是否连续重复相同动作，防止agent卡住。
+
+```bash
+python3 runtime_guard.py duplicate
+```
+
+**输出示例**：
+```
+🔴 重复动作警告：最近3次都是「data_fetch」
+   你可能卡住了，尝试换个方法或寻求帮助
+```
+
+**适用场景**：防止agent陷入死循环，连续做同一件事。
+
+---
+
+### 4.4 focus（注意力衰减检测）
+
+**原理**：长对话中LLM的注意力会逐渐衰减，跑偏做无用功。
+
+```bash
+python3 runtime_guard.py focus
+```
+
+**输出示例**：
+```
+🔴 注意力衰减警告：已执行很多动作，但关键步骤完成很少
+   总动作数: 25
+   完成步骤数: 2
+   建议：重新读取计划文件（plan.md），确认方向是否正确
+```
+
+**适用场景**：长对话中防止跑偏，定期检查是否还在任务范围内。
+
+---
+
+### 4.5 quantitative（定量阈值检查）
+
+**原理**：设置硬性最低标准，避免"差不多就行"的捷径。
+
+```bash
+python3 runtime_guard.py quantitative --min-scripts 5 --min-docs 3 --min-steps 10
+```
+
+**输出示例**：
+```json
+{
+  "scripts_used": 2,
+  "min_scripts_required": 5,
+  "docs_read": 1,
+  "min_docs_required": 3,
+  "steps_completed": 3,
+  "min_steps_required": 10,
+  "issues": [
+    "❌ 脚本使用不足：仅2个，最低要求5个",
+    "❌ 文档阅读不足：仅1个，最低要求3个",
+    "❌ 步骤完成不足：仅3步，最低要求10步"
+  ],
+  "passed": false
+}
+```
+
+**适用场景**：防止LLM"差不多就行"，确保真的用足了技能的能力。
+
+---
+
+## 五、为什么这不是"增加复杂度"
 
 **常见质疑**：又加一个脚本，不是更复杂了吗？
 
