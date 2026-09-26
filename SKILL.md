@@ -99,7 +99,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 # 全部通过后，技能即可使用
 ```
 
-### 常用命令速查（核心5个）
+### 常用命令速查（核心6个）
 
 | 操作 | 命令 |
 |------|------|
@@ -108,8 +108,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 深度评审 | `python3 scripts/create_skill.py review <skill-path>` |
 | 端到端测试 | `python3 scripts/create_skill.py test <skill-path>` |
 | 规范校验 | `python3 scripts/validate_skill.py <skill-path>` |
+| **运行时保障** | `python3 scripts/runtime_guard.py verify --required-steps "step1,step2,..."` |
 
-> **高级命令**（评估/安全/运维/描述优化等20+个）见 `references/command-reference.md`
+> **运行时保障（防LLM偷懒核心）**：每步执行后用 `runtime_guard.py track` 记录，提交前用 `runtime_guard.py verify` 验证所有必需步骤是否完成，用 `runtime_guard.py report` 查看工具使用率。详见 `references/runtime-guard-guide.md`
 
 > **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/exit-codes.md`
 
@@ -190,6 +191,11 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
    - 症状：写了"必须认真完成所有步骤"，但LLM每次输出都一样，只用了10%的能力
    - 修正：用工程手段对抗——编排脚本强制流程+硬门禁校验+可验证输出，详见 `references/llm-anti-laziness-guide.md`
    - 原因：抽象约束无法验证，LLM说"我分析了"你无法证明它没分析；工程手段才能真正防偷懒
+
+9. **没有运行时保障，LLM说完成了但实际没完成**
+   - 症状：LLM说"我完成了所有步骤"，但实际只做了20%，你无法验证它真的做了
+   - 修正：用runtime_guard.py——每步执行后track记录，提交前verify验证所有必需步骤是否完成，report查看工具使用率
+   - 原因：靠prompt约束LLM自觉遵守是无效的，必须在运行时监控它的行为，做没做有据可查，不完成就拒绝接受输出
 
 ---
 
