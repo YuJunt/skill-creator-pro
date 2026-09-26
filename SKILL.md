@@ -102,9 +102,9 @@ allowed-tools:
 > - `quantitative`：定量阈值检查（最少脚本/文档/步骤数）
 > - `reset`：重置使用记录
 >
-> 详见 `references/runtime-guard-guide.md`
+> 详见 `references/anti-laziness-guide.md`
 
-> **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/exit-codes.md`
+> **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/command-reference.md`
 
 ---
 
@@ -119,8 +119,8 @@ allowed-tools:
 | **技能升级** | upgrade_skill.py | `python3 scripts/upgrade_skill.py <skill-path>` |
 | **打包发布** | package.sh | `bash scripts/package.sh <skill-path>` |
 | **多模型测试** | multi_model_test.py | `python3 scripts/multi_model_test.py` |
-| **反馈循环** | feedback_loop.py | `python3 scripts/feedback_loop.py` |
-| **使用可观测性** | skill_observability.py | `python3 scripts/skill_observability.py log --skill-name <name>` |
+| **反馈循环** | skill_evolution.py | `python3 scripts/skill_evolution.py` |
+| **使用可观测性** | skill_evolution.py | `python3 scripts/skill_evolution.py log --skill-name <name>` |
 | **版本管理** | release_audit.py | `python3 scripts/release_audit.py status/bump` |
 | **描述优化与触发诊断** | description_optimizer.py | `python3 scripts/description_optimizer.py optimize <skill-path>` 或 `diagnose <skill-path>` |
 | **评估运行与评分** | eval_runner.py | `python3 scripts/eval_runner.py eval --type all` 或 `grade <run-dir>` |
@@ -137,21 +137,21 @@ allowed-tools:
 | 场景 | 文档 | 什么时候读 |
 |------|------|-----------|
 | **深度审计/评审** | `references/36-element-checklist.md` | 审计技能时，36项检查清单 |
-| **端到端测试** | `references/eval-practice.md` | 做端到端测试时，测试手册 |
+| **端到端测试** | `references/evaluation-cases.md` | 做端到端测试时，测试手册 |
 | **评估用例模板** | `references/evaluation-cases.md` | 需要评估用例模板时，触发/输出/边界三类用例 |
-| **防LLM偷懒** | `references/llm-anti-laziness-guide.md` | 设计防偷懒机制时 |
-| **运行时保障** | `references/runtime-guard-guide.md` | 使用runtime_guard时 |
-| **自进化闭环** | `references/self-evolution-playbook.md` | 设计自进化机制时 |
-| **经验库建设** | `references/experience-library-guide.md` | 建设经验库时 |
+| **防LLM偷懒** | `references/anti-laziness-guide.md` | 设计防偷懒机制时 |
+| **运行时保障** | `references/anti-laziness-guide.md` | 使用runtime_guard时 |
+| **自进化闭环** | `references/self-evolution-guide.md` | 设计自进化机制时 |
+| **经验库建设** | `references/self-evolution-guide.md` | 建设经验库时 |
 | **技术债管理** | `references/tech-debt-management.md` | 管理技术债时 |
 | **Gotchas合集** | `references/gotchas-collection.md` | 写Gotchas时参考 |
 | **最佳实践** | `references/best-practices.md` | 设计技能时参考 |
 | **架构模式** | `references/architecture-patterns.md` | 设计架构时参考 |
 | **设计哲学** | `references/design-philosophies.md` | 选择设计哲学时 |
 | **评估指南** | `references/evaluation-guide.md` | 做评估时参考 |
-| **多模型测试** | `references/multi-model-testing-guide.md` | 做多模型测试时 |
-| **预加载设计** | `references/preload-design-guide.md` | 设计预加载机制时 |
-| **输出格式** | `references/output-formats.md` | 设计输出格式时 |
+| **多模型测试** | `references/advanced-testing-guide.md` | 做多模型测试时 |
+| **预加载设计** | `references/performance-optimization-guide.md` | 设计预加载机制时 |
+| **输出格式** | `references/output-and-templates-guide.md` | 设计输出格式时 |
 
 > 💡 **按需加载原则**：不需要全部读完，做对应工作时再去读对应的文档。
 
@@ -190,16 +190,39 @@ allowed-tools:
 
 ## Gotchas（最高优先级，违反=创建出不合格技能）
 
-> 这些都是**真实踩过的坑**，不是抽象规则。完整26个见 `references/gotchas-collection.md`。
+> 这些都是**真实踩过的坑**，不是抽象规则。完整26个（含原因分析）见 `references/gotchas-collection.md`。
 
-1. **description只写"做什么"不写"什么时候用"** → 必须包含三要素（What+When+Trigger phrases），否则技能不触发或误触发
-2. **SKILL.md超过500行还不拆分** → 超过300行就考虑拆分，详细内容放references/，否则LLM只看前半部分
-3. **没有触发路由，LLM直接跳到结论** → SKILL.md开头加强制路由输出，任何分析前先声明模式
-4. **写抽象规则"严禁偷懒"** → 写具体Gotchas（真实失败模式+修正），用工程手段对抗（编排脚本+硬门禁+可验证输出）
-5. **没有完整示例，LLM从零推理** → examples/里放1-2个完整示例，LLM照着做，质量更稳定
-6. **没有校验门禁，LLM偷工减料也能通过** → 关键步骤前硬校验，缺字段就报错，不允许跳过
-7. **脚本不测试就交付** → 每个脚本必须实际运行测试，端到端跑通完整流程
-8. **没有运行时保障，LLM说完成了但实际没完成** → 用runtime_guard.py（track记录+verify验证+report报告），不完成就拒绝接受输出
+1. **description只写"做什么"不写"什么时候用"**
+   - 症状：技能永远不触发，或在不相关的场景下错误触发
+   - 修正：description必须包含三要素（What做什么+When什么时候用+Trigger phrases触发词）
+
+2. **SKILL.md超过500行还不拆分**
+   - 症状：上下文窗口被占满，LLM只看前半部分，后半部分的规则被忽略
+   - 修正：超过300行就考虑拆分，详细内容放references/，按需加载
+
+3. **没有触发路由，LLM直接跳到结论**
+   - 症状：用户说"快速"却走了完整流程，用户说"核对"却做了分析
+   - 修正：SKILL.md开头加强制路由输出，任何分析前先声明模式
+
+4. **写抽象规则"严禁偷懒"，LLM表面满足实际套模板**
+   - 症状：写了"必须认真完成所有步骤"，但LLM每次输出都一样，只用了10%的能力
+   - 修正：写具体Gotchas（真实失败模式+修正方法），用工程手段对抗（编排脚本+硬门禁+可验证输出）
+
+5. **没有完整示例，LLM从零推理**
+   - 症状：每次输出格式都不一样，遗漏关键步骤，质量不稳定
+   - 修正：examples/里放1-2个完整示例，LLM照着做，质量更稳定
+
+6. **没有校验门禁，LLM偷工减料也能通过**
+   - 症状：缺必要字段/格式错误也能交付，输出不完整
+   - 修正：关键步骤前硬校验，缺字段就报错，不允许跳过
+
+7. **脚本不测试就交付**
+   - 症状：用户第一次用就报错，TypeError/KeyError满天飞
+   - 修正：每个脚本必须实际运行测试，端到端跑通完整流程
+
+8. **没有运行时保障，LLM说完成了但实际没完成**
+   - 症状：LLM说"我完成了所有步骤"，但实际只做了20%，无法验证
+   - 修正：用runtime_guard.py（track记录+verify验证+report报告），不完成就拒绝接受输出
 
 ---
 
@@ -225,14 +248,14 @@ allowed-tools:
 
 ## 输出格式
 
-> 4种交付格式完整模板见 `references/output-formats.md`，按需加载。
+> 4种交付格式完整模板见 `references/output-and-templates-guide.md`，按需加载。
 
 | 交付场景 | 核心字段 | 模板位置 |
 |---------|---------|---------|
-| 新建技能 | 路径/设计哲学/36项达标/必备层/待完善 | references/output-formats.md §1 |
-| 优化技能 | 优化前后对比/修复问题/新增功能/待完善 | references/output-formats.md §2 |
-| 评审报告 | 总体评分/三层得分/高/中/低优先级问题 | references/output-formats.md §3 |
-| 端到端测试 | 测试结果汇总/失败用例详情/结论 | references/output-formats.md §4 |
+| 新建技能 | 路径/设计哲学/36项达标/必备层/待完善 | references/output-and-templates-guide.md §1 |
+| 优化技能 | 优化前后对比/修复问题/新增功能/待完善 | references/output-and-templates-guide.md §2 |
+| 评审报告 | 总体评分/三层得分/高/中/低优先级问题 | references/output-and-templates-guide.md §3 |
+| 端到端测试 | 测试结果汇总/失败用例详情/结论 | references/output-and-templates-guide.md §4 |
 
 **所有交付必须包含校验状态**：✅规范校验 + ✅深度审计（必备层全部达标）。
 
@@ -249,10 +272,10 @@ allowed-tools:
 
 | 路由模式 | must_read（必读，按顺序） |
 |---------|--------------------------|
-| 🆕 新建技能 | 1. `best-practices.md`（官方最佳实践）→ 2. `design-philosophies.md`（设计哲学选择）→ 3. `36-element-checklist.md`（质量标准）→ 4. `template-filling-guide.md`（模板填充指南） |
+| 🆕 新建技能 | 1. `best-practices.md`（官方最佳实践）→ 2. `design-philosophies.md`（设计哲学选择）→ 3. `36-element-checklist.md`（质量标准）→ 4. `output-and-templates-guide.md`（模板填充指南） |
 | 🔧 优化技能 | 1. `36-element-checklist.md`（质量标准）→ 2. `gotchas-collection.md`（30个真实坑案例）→ 3. `best-practices.md`（官方最佳实践）→ 4. `tech-debt-management.md`（技术债管理） |
-| 🔍 深度评审 | 1. `36-element-checklist.md`（36项审计清单）→ 2. `review-process-guide.md`（7维度评审流程）→ 3. `best-practices.md`（官方最佳实践）→ 4. `security-audit-checklist.md`（安全检查清单） |
-| 🧪 端到端测试 | 1. `eval-practice.md`（评估用例+E2E测试流程）→ 2. `routing-mustread-test-cases.md`（路由专项测试）→ 3. `evaluation-guide.md`（8维度评估体系）→ 4. `multi-model-testing-guide.md`（多模型测试） |
+| 🔍 深度评审 | 1. `36-element-checklist.md`（36项审计清单）→ 2. `review-and-security-guide.md`（7维度评审流程）→ 3. `best-practices.md`（官方最佳实践）→ 4. `review-and-security-guide.md`（安全检查清单） |
+| 🧪 端到端测试 | 1. `evaluation-cases.md`（评估用例+E2E测试流程）→ 2. `advanced-testing-guide.md`（路由专项测试）→ 3. `evaluation-guide.md`（8维度评估体系）→ 4. `advanced-testing-guide.md`（多模型测试） |
 
 ### L3: 按需加载（需要时才读，不强制，按主题分组）
 
@@ -261,17 +284,17 @@ allowed-tools:
 | 主题 | 文档 | 什么时候读 |
 |------|------|-----------|
 | **架构设计** | `architecture-patterns.md` | 设计技能架构，需要模式参考时 |
-| **防LLM偷懒** | `llm-anti-laziness.md` + `runtime-guard-guide.md` | 技能需要防偷懒机制时 |
-| **预加载设计** | `preload-design-guide.md` | 设计预加载机制时 |
-| **自进化闭环** | `self-evolution-playbook.md` + `experience-library-guide.md` | 技能需要经验库和自进化时 |
-| **Prompt Caching** | `prompt-caching-guide.md` | 优化技能结构降低成本时 |
+| **防LLM偷懒** | `llm-anti-laziness.md` + `anti-laziness-guide.md` | 技能需要防偷懒机制时 |
+| **预加载设计** | `performance-optimization-guide.md` | 设计预加载机制时 |
+| **自进化闭环** | `self-evolution-guide.md` + `self-evolution-guide.md` | 技能需要经验库和自进化时 |
+| **Prompt Caching** | `performance-optimization-guide.md` | 优化技能结构降低成本时 |
 | **MCP集成** | `mcp-integration-guide.md` | 技能需要MCP集成时 |
 | **需求发现** | `requirement-discovery-guide.md` | 用户需求不明确，需要主动发现时 |
 | **自由度匹配** | `degrees-of-freedom.md` | 根据任务脆弱性调整指令严格程度时 |
 | **技能组合** | `skill-composition.md` | 多技能组合，一技能一职责时 |
-| **快速上手/FAQ** | `quick-start.md` / `faq.md` / `examples/` | 新用户快速上手或查常见问题时 |
+| **快速上手/FAQ** | `quick-start.md` / `quick-start.md` / `examples/` | 新用户快速上手或查常见问题时 |
 | **命令参考** | `command-reference.md` | 需要查脚本详细用法时 |
-| **退出码** | `exit-codes.md` | 需要查脚本退出码含义时 |
+| **退出码** | `command-reference.md` | 需要查脚本退出码含义时 |
 
 ### L4: 脚本自动完成 + assets资源 + 官方权威资源
 规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
