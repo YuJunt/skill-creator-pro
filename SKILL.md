@@ -127,6 +127,27 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 
 ---
 
+## 高级工具索引（按需使用，不是每次都要用）
+
+> 核心6个命令是日常必用的。下面这些是**高级工具**，特定场景才需要，需要时再去看帮助。
+
+| 场景 | 工具 | 用法 |
+|------|------|------|
+| **安全检查** | security_scan.py | `python3 scripts/security_scan.py <skill-path>` |
+| **供应链安全** | supply_chain_scan.py | `python3 scripts/supply_chain_scan.py <skill-path> --generate-sbom` |
+| **技能升级** | upgrade_skill.py | `python3 scripts/upgrade_skill.py <skill-path>` |
+| **打包发布** | package.sh | `bash scripts/package.sh <skill-path>` |
+| **多模型测试** | multi_model_test.py | `python3 scripts/multi_model_test.py` |
+| **反馈循环** | feedback_loop.py | `python3 scripts/feedback_loop.py` |
+| **使用可观测性** | skill_observability.py | `python3 scripts/skill_observability.py log --skill-name <name>` |
+| **版本管理** | version_manager.py | `python3 scripts/version_manager.py` |
+| **描述优化** | description_optimizer.py | `python3 scripts/description_optimizer.py <skill-path>` |
+| **触发诊断** | diagnose_trigger.py | `python3 scripts/diagnose_trigger.py <skill-path>` |
+
+> 💡 **按需加载原则**：以上工具不需要每次都用。遇到对应场景时再去看它的帮助（`--help`）。
+
+---
+
 ## 工作流程与自由度
 
 > **自由度说明**: 按步骤标注自由度等级——🟢高自由度（灵活调整，可根据情况变化）/ 🟡中自由度（推荐流程，建议按此执行）/ 🔴低自由度（必须严格执行，不允许跳过或变通）。脆弱步骤（出错代价高）用🔴，灵活步骤用🟢。
