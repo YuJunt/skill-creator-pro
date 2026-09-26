@@ -101,6 +101,38 @@ def evaluate_expectation(expectation, outputs):
             "type": "not_contains"
         }
 
+    elif check_type == "execution":
+        # 检查是否执行了正确的动作（官方4种断言之一）
+        # 检查输出中是否包含特定的命令/脚本执行痕迹
+        actions = expectation.get("actions", [])
+        if isinstance(actions, str):
+            actions = [actions]
+        # 支持多种执行痕迹：命令行调用、脚本名、特定输出标记
+        executed = all(
+            any(action in content for content in outputs.values())
+            for action in actions
+        )
+        return {
+            "text": text,
+            "passed": executed,
+            "evidence": f"检查执行动作: {actions}",
+            "type": "execution"
+        }
+
+    elif check_type == "output_quality":
+        # 检查输出质量（官方4种断言之一，contains的别名）
+        # 检查输出是否包含期望的数据/结构
+        requirements = expectation.get("requirements", [])
+        if isinstance(requirements, str):
+            requirements = [requirements]
+        quality_ok = all(req in all_content for req in requirements)
+        return {
+            "text": text,
+            "passed": quality_ok,
+            "evidence": f"检查输出质量要求: {requirements}",
+            "type": "output_quality"
+        }
+
     else:
         return {
             "text": text,

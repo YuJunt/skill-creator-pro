@@ -106,26 +106,47 @@ def aggregate_runs(runs):
 
         configs[config]["runs"].append(run_data)
 
-    # 计算统计
+    # 计算统计（完整方差分析）
     for config_name, config_data in configs.items():
         pass_rates = config_data["pass_rates"]
         durations = config_data["durations"]
         tokens = config_data["tokens"]
 
+        config_data["run_count"] = len(config_data["runs"])
+
         if pass_rates:
             mean_pass = sum(pass_rates) / len(pass_rates)
             variance = sum((p - mean_pass) ** 2 for p in pass_rates) / len(pass_rates)
             std_pass = variance ** 0.5
+            cv_pass = (std_pass / mean_pass * 100) if mean_pass > 0 else 0
             config_data["pass_rate_mean"] = round(mean_pass, 4)
             config_data["pass_rate_std"] = round(std_pass, 4)
+            config_data["pass_rate_min"] = round(min(pass_rates), 4)
+            config_data["pass_rate_max"] = round(max(pass_rates), 4)
+            config_data["pass_rate_cv_pct"] = round(cv_pass, 2)  # 变异系数，<10%稳定，10-30%中等，>30%不稳定
+            config_data["pass_rate_stability"] = "稳定" if cv_pass < 10 else ("中等" if cv_pass < 30 else "不稳定")
 
         if durations:
             mean_duration = sum(durations) / len(durations)
+            variance_d = sum((d - mean_duration) ** 2 for d in durations) / len(durations)
+            std_duration = variance_d ** 0.5
+            cv_duration = (std_duration / mean_duration * 100) if mean_duration > 0 else 0
             config_data["duration_mean"] = round(mean_duration, 2)
+            config_data["duration_std"] = round(std_duration, 2)
+            config_data["duration_min"] = round(min(durations), 2)
+            config_data["duration_max"] = round(max(durations), 2)
+            config_data["duration_cv_pct"] = round(cv_duration, 2)
 
         if tokens:
             mean_tokens = sum(tokens) / len(tokens)
+            variance_t = sum((t - mean_tokens) ** 2 for t in tokens) / len(tokens)
+            std_tokens = variance_t ** 0.5
+            cv_tokens = (std_tokens / mean_tokens * 100) if mean_tokens > 0 else 0
             config_data["tokens_mean"] = int(mean_tokens)
+            config_data["tokens_std"] = int(std_tokens)
+            config_data["tokens_min"] = int(min(tokens))
+            config_data["tokens_max"] = int(max(tokens))
+            config_data["tokens_cv_pct"] = round(cv_tokens, 2)
 
     return configs
 
@@ -165,26 +186,44 @@ def calculate_deltas(configs):
 
 
 def generate_markdown(configs, skill_name, previous_configs=None):
-    """生成Markdown报告"""
+    """生成Markdown报告（完整方差分析版）"""
     lines = []
     lines.append(f"# 基准测试报告：{skill_name}")
     lines.append(f"生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("")
-    lines.append("## 配置对比")
+    lines.append("## 配置对比（含方差分析）")
     lines.append("")
-    lines.append("| 配置 | 通过率(mean±std) | 耗时(mean) | Tokens(mean) | Δ通过率 | Δ耗时 | ΔTokens |")
-    lines.append("|------|-----------------|-----------|-------------|--------|------|---------|")
+    lines.append("| 配置 | 运行次数 | 通过率(mean±std) | 稳定性 | 耗时(mean±std) | Tokens(mean±std) | Δ通过率 |")
+    lines.append("|------|---------|-----------------|--------|---------------|-----------------|--------|")
 
     for config_name, config_data in configs.items():
+        run_count = config_data.get("run_count", 0)
         pass_rate = f"{config_data.get('pass_rate_mean', 'N/A')}±{config_data.get('pass_rate_std', 'N/A')}"
-        duration = f"{config_data.get('duration_mean', 'N/A')}s"
-        tokens = f"{config_data.get('tokens_mean', 'N/A')}"
+        stability = config_data.get("pass_rate_stability", "N/A")
+        duration = f"{config_data.get('duration_mean', 'N/A')}±{config_data.get('duration_std', 'N/A')}s"
+        tokens = f"{config_data.get('tokens_mean', 'N/A')}±{config_data.get('tokens_std', 'N/A')}"
         delta_pass = f"{config_data.get('pass_rate_delta', '-')}"
-        delta_duration = f"{config_data.get('duration_delta', '-')}s"
-        delta_tokens = f"{config_data.get('tokens_delta', '-')}"
 
-        lines.append(f"| {config_name} | {pass_rate} | {duration} | {tokens} | {delta_pass} | {delta_duration} | {delta_tokens} |")
+        lines.append(f"| {config_name} | {run_count} | {pass_rate} | {stability} | {duration} | {tokens} | {delta_pass} |")
 
+    lines.append("")
+    lines.append("## 统计详情（min/max/CV）")
+    lines.append("")
+    lines.append("| 配置 | 通过率min/max | 通过率CV% | 耗时min/max | 耗时CV% | Tokens min/max | Tokens CV% |")
+    lines.append("|------|--------------|----------|------------|--------|---------------|-----------|")
+
+    for config_name, config_data in configs.items():
+        pass_minmax = f"{config_data.get('pass_rate_min', 'N/A')}/{config_data.get('pass_rate_max', 'N/A')}"
+        pass_cv = f"{config_data.get('pass_rate_cv_pct', 'N/A')}%"
+        dur_minmax = f"{config_data.get('duration_min', 'N/A')}/{config_data.get('duration_max', 'N/A')}s"
+        dur_cv = f"{config_data.get('duration_cv_pct', 'N/A')}%"
+        tok_minmax = f"{config_data.get('tokens_min', 'N/A')}/{config_data.get('tokens_max', 'N/A')}"
+        tok_cv = f"{config_data.get('tokens_cv_pct', 'N/A')}%"
+
+        lines.append(f"| {config_name} | {pass_minmax} | {pass_cv} | {dur_minmax} | {dur_cv} | {tok_minmax} | {tok_cv} |")
+
+    lines.append("")
+    lines.append("> **稳定性判定**：CV<10%=稳定，10-30%=中等，>30%=不稳定。建议每个配置至少运行3次以获得可靠的方差估计。")
     lines.append("")
     lines.append("## 各测试用例详情")
     lines.append("")
