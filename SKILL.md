@@ -245,8 +245,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 技能创建最佳实践（默认位置/Browser Use/禁止文件/迭代流程） | `references/best-practices.md` |
 | 模板填充指南（14个模板每个占位符怎么填+质量标准） | `references/template-filling-guide.md` |
 | 选择技能设计哲学（工具包装vs方法论） | `references/design-philosophies.md` |
-| 评估驱动开发（先建eval再写技能） | `references/evaluation-driven-development.md` |
-| 评估分级器设计（code-based/model-based/human三种grader） | `references/eval-grader-design.md` |
+| 评估体系总览（8维度+用例模板+报告模板） | `references/evaluation-guide.md` |
+| 评估驱动开发（先建eval再写技能+三种grader设计+基准回归） | `references/evaluation-driven-development.md` |
+| 评估用例模板（触发/行为/质量三类用例） | `references/evaluation-cases.md` |
 | 企业级技能管理（去重/合并/版本/分发） | `references/enterprise-skill-management.md` |
 | Prompt Caching优化（技能结构如何利用缓存降成本） | `references/prompt-caching-guide.md` |
 | MCP集成指导（什么时候用MCP+安全注意事项+降级策略） | `references/mcp-integration-guide.md` |
@@ -255,7 +256,6 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 技能注册表（程序化发现所有技能的元数据格式） | `references/skill-registry-format.md` |
 | 需求发现（从不完备brief中主动发现遗漏需求） | `references/requirement-discovery-guide.md` |
 | 自由度匹配（根据任务脆弱性调整指令严格程度） | `references/degrees-of-freedom.md` |
-| 安全审计（创建/使用第三方技能的安全检查） | `references/security-audit-checklist.md` |
 | 技能组合（一技能一职责，多技能组合原则） | `references/skill-composition.md` |
 
 **质量保证（优化/评审技能时读）**
@@ -263,25 +263,18 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 |---------|--------|
 | 新建/优化技能，需要详细标准 | `references/36-element-checklist.md` |
 | 设计技能架构，需要模式参考 | `references/architecture-patterns.md` |
-| 避免常见坑，需要真实案例 | `references/gotchas-collection.md` |
-| 测试技能，需要评估方法 | `references/evaluation-guide.md` |
-| 端到端测试，需要完整手册 | `references/e2e-testing-playbook.md` |
+| 避免常见坑，需要30个真实案例 | `references/gotchas-collection.md` |
 | 安全审计，需要检查清单 | `references/security-audit-checklist.md` |
-| 安全扫描，自动化检测注入/危险代码/数据泄露 | `scripts/security_scan.py` |
-| 技能评估用例模板（触发/行为/质量） | `references/evaluation-cases.md` |
+| 端到端测试，需要完整手册 | `references/e2e-testing-playbook.md` |
 | 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
 | 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
-| 搭建自进化闭环，需要详细手册 | `references/self-evolution-playbook.md` |
-| 建设经验库，需要结构/提取/自净化/持久化完整方案 | `references/experience-library-guide.md` |
+| 自进化闭环+经验库（执行→评估→复盘→经验提取→下批参考） | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
 | 管理技术债，需要审计偿还流程 | `references/tech-debt-management.md` |
-| 做端到端实测，需要完整流程模板 | `references/e2e-testing-playbook.md` |
 | 多模型测试，验证技能跨模型一致性 | `references/multi-model-testing-guide.md` |
-| 触发路由/must_read专项测试，需要55个测试用例 | `references/routing-mustread-test-cases.md` |
+| 触发路由/must_read专项测试 | `references/routing-mustread-test-cases.md` |
 | 做规范评审，需要7维度检查清单 | `references/review-process-guide.md` |
 | CI/CD集成，需要退出码规范 | `references/exit-codes.md` |
-| 快速上手，5分钟学会使用 | `references/quick-start.md` |
-| 常见问题解答 | `references/faq.md` |
-| 看完整示例，照着做 | `examples/` 里的示例 |
+| 快速上手/常见问题/完整示例 | `references/quick-start.md` / `references/faq.md` / `examples/` |
 
 ### L3: 脚本自动完成 + assets资源 + 官方权威资源
 规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
