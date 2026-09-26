@@ -97,6 +97,45 @@ description: >
 
 ---
 
+## 完整示例（端到端）
+
+**用户输入**："审查这个MR：https://github.com/example/repo/pull/123"
+
+**第1步 确认范围**：MR #123，Python语言，审查重点：安全+性能
+
+**第2步 读取代码**：
+```python
+def get_user(user_id):
+    query = f"SELECT * FROM users WHERE id = {user_id}"
+    return db.execute(query)
+
+def get_all_users():
+    users = []
+    for id in range(1000):
+        users.append(get_user(id))
+    return users
+```
+
+**第3步 Checklist逐项审查**：
+- 安全性：❌ `user_id`直接拼接SQL，有SQL注入风险
+- 性能：❌ 循环中调用`get_user`，N+1查询
+- 可维护性：✅ 函数名清晰
+- 可读性：✅ 代码结构清晰
+- 测试：❌ 没有单元测试
+
+**第4步 问题分级**：
+1. **严重** SQL注入（第2行）→ 改用参数化查询
+2. **高** N+1查询（第6行）→ 改用批量查询
+3. **中** 缺测试（整个文件）→ 补充pytest
+
+**第5步 输出报告**：按输出格式模板填写
+
+**第6步 验证循环**：
+- 用户修复后 → 验证修复是否生效 → 未修复的问题继续跟踪
+- 执行→验证→修正，形成闭环，不允许执行完就完事
+
+---
+
 ## Gotchas（常见坑）
 
 1. **只看diff不看上下文**：MR审查时只看改动行，不看改动的函数/类的完整上下文，容易漏判

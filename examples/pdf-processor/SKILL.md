@@ -71,6 +71,36 @@ python3 scripts/encrypt_pdf.py input.pdf --decrypt --password 123456 -o output.p
 
 ---
 
+## 渐进式披露执行层
+
+| 什么时候 | 读什么 |
+|---------|--------|
+| 需要合并PDF | `scripts/merge_pdf.py --help` |
+| 需要拆分PDF | `scripts/split_pdf.py --help` |
+| 需要提取文本 | `scripts/extract_text.py --help` |
+| 需要验证输出 | 检查输出文件存在+页数正确 |
+
+---
+
+## 完整示例（端到端）
+
+**用户输入**："把这3个PDF合并成一个，然后提取第10-20页的文本"
+
+**第1步 确认操作**：合并3个PDF → 拆分第10-20页 → 提取文本
+
+**第2步 执行**：
+```bash
+python3 scripts/merge_pdf.py file1.pdf file2.pdf file3.pdf -o merged.pdf
+python3 scripts/split_pdf.py merged.pdf --pages 10-20 -o pages.pdf
+python3 scripts/extract_text.py pages.pdf -o text.txt
+```
+
+**第3步 验证循环**：
+- 确认输出文件存在+页数正确 → 不对则重新执行
+- 执行→验证→修正，形成闭环
+
+---
+
 ## Gotchas（常见坑）
 
 1. **大文件处理慢**：超过100MB的PDF处理可能需要30秒以上，提前告知用户
