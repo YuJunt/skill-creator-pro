@@ -561,6 +561,12 @@ def main():
     p_upgrade.add_argument("--backup", action="store_true", help="迁移前自动备份")
     p_upgrade.add_argument("--target", help="迁移到新目录（不修改原技能）")
 
+    # route 模式（自然语言自动路由）
+    p_route = subparsers.add_parser("route", help="自然语言自动路由（输入用户消息，自动判断模式）")
+    p_route.add_argument("message", help="用户消息（自然语言描述需求）")
+    p_route.add_argument("--json", action="store_true", help="JSON格式输出路由决策")
+    p_route.add_argument("--verbose", action="store_true", help="详细输出（包含各模式分数）")
+
     args = parser.parse_args()
 
     # P3: 路由行自动输出（硬校验——只要调用编排脚本，就一定会输出路由行）
@@ -594,6 +600,51 @@ def main():
                 result = apply_migration(args.skill_path, analysis, target_path=args.target, backup=args.backup)
             else:
                 result = {"success": True, "skill_path": args.skill_path, "mode": "upgrade", "note": "仅分析，未应用。使用 --apply 应用迁移方案"}
+        elif args.command == "route":
+            # 自然语言自动路由
+            sys.path.insert(0, SCRIPT_DIR)
+            from router import route as router_route
+            decision = router_route(args.message)
+
+            if args.json:
+                print(json.dumps(decision.to_dict(), ensure_ascii=False, indent=2))
+            else:
+                print(f"\n{'='*60}")
+                print(f"🔀 自动路由结果")
+                print(f"{'='*60}")
+                print(f"\n📥 输入: {args.message}")
+                print(f"\n🎯 模式: {decision.mode}")
+                print(f"📊 置信度: {decision.confidence}")
+                print(f"💡 理由: {decision.reasoning}")
+
+                if decision.must_read:
+                    print(f"\n📚 必读文档 ({len(decision.must_read)}个):")
+                    for doc in decision.must_read:
+                        print(f"   - {doc}")
+
+                if decision.alternatives:
+                    print(f"\n🔄 备选模式: {', '.join(decision.alternatives)}")
+
+                if decision.mode == "ambiguous":
+                    print(f"\n❓ 请求模糊，请明确你的需求：")
+                    print(f"   - 创建新技能 → python3 create_skill.py create <name> --path <dir>")
+                    print(f"   - 优化现有技能 → python3 create_skill.py optimize <skill-path>")
+                    print(f"   - 评审技能 → python3 create_skill.py review <skill-path>")
+                    print(f"   - 测试技能 → python3 create_skill.py test <skill-path>")
+                elif decision.mode == "refuse":
+                    print(f"\n🚫 危险请求已拒绝")
+                else:
+                    mode_commands = {
+                        "create": "python3 create_skill.py create <name> --path <dir>",
+                        "optimize": "python3 create_skill.py optimize <skill-path>",
+                        "review": "python3 create_skill.py review <skill-path>",
+                        "test": "python3 create_skill.py test <skill-path>",
+                    }
+                    cmd = mode_commands.get(decision.mode, "")
+                    if cmd:
+                        print(f"\n🚀 下一步: {cmd}")
+
+            result = {"success": True, "mode": "route", "routing_result": decision.to_dict()}
         else:
             parser.print_help()
             sys.exit(1)
