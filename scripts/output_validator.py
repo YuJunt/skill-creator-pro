@@ -372,12 +372,67 @@ def check_routing_completeness(skill_path):
         print("  ✅ 有路由表章节")
 
     # 检查2：是否有多种模式（至少2种）
-    mode_keywords = ["新建", "创建", "优化", "评审", "审计", "测试", "create", "optimize", "review", "test"]
-    mode_count = sum(1 for kw in mode_keywords if kw in content)
-    if mode_count < 4:
-        warnings.append(f"⚠️ 路由模式较少（检测到{mode_count}个关键词），建议至少支持2-4种模式")
+    # 优先检测路由表表格的行数（通用方式，不硬编码特定模式关键词）
+    def count_routing_table_modes(content):
+        """统计路由表中的模式数量（通过markdown表格数据行）"""
+        lines = content.split('\n')
+        in_routing_section = False
+        table_started = False
+        mode_count = 0
+
+        for line in lines:
+            # 检测路由相关章节标题
+            if line.startswith('#') and any(kw in line for kw in ['路由', 'routing', '触发模式', '模式选择']):
+                in_routing_section = True
+                table_started = False
+                continue
+            # 遇到下一个章节标题，退出路由章节
+            elif line.startswith('#') and in_routing_section:
+                in_routing_section = False
+                continue
+
+            if in_routing_section and line.strip().startswith('|'):
+                # 跳过表头（第一行）和分隔行（|---|）
+                if not table_started:
+                    table_started = True
+                    continue
+                if '---' in line or '===' in line:
+                    continue
+                # 数据行：统计模式数量
+                if line.strip().startswith('|') and len(line.strip()) > 3:
+                    mode_count += 1
+
+        return mode_count
+
+    # 先尝试用表格方式统计
+    mode_count = count_routing_table_modes(content)
+
+    # 如果表格方式没检测到（可能没有路由表），再用通用关键词方式
+    if mode_count == 0:
+        # 通用关键词列表（不局限于特定模式，覆盖常见的路由模式类型）
+        generic_mode_keywords = [
+            # 技能创建类
+            "新建", "创建", "优化", "评审", "审计", "测试",
+            "create", "optimize", "review", "test", "audit",
+            # 工具调用类
+            "工具调用", "执行", "运行", "处理", "预览", "撤销",
+            # 帮助查询类
+            "帮助查询", "帮助", "怎么用", "用法",
+            # 错误排查类
+            "错误排查", "出错", "报错", "失败",
+            # 分析类
+            "完整分析", "快速推荐", "规则问答", "结算核对", "效果复盘",
+            # 通用模式标识
+            "模式", "路由模式",
+        ]
+        mode_count = sum(1 for kw in generic_mode_keywords if kw in content)
+
+    if mode_count < 2:
+        issues.append(f"❌ 路由模式不足（检测到{mode_count}种模式），至少需要2种路由模式")
+    elif mode_count < 4:
+        warnings.append(f"⚠️ 路由模式较少（检测到{mode_count}种模式），建议支持2-4种模式")
     else:
-        print(f"  ✅ 路由模式丰富（检测到{mode_count}个关键词）")
+        print(f"  ✅ 路由模式丰富（检测到{mode_count}种模式）")
 
     # 检查3：是否有must_read机制
     has_must_read = "must_read" in content or "必读文档" in content or "按需加载" in content
