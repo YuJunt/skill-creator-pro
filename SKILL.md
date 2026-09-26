@@ -90,7 +90,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 # 全部通过后，技能即可使用
 ```
 
-### 常用命令速查
+### 常用命令速查（核心5个）
 
 | 操作 | 命令 |
 |------|------|
@@ -98,20 +98,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 优化校验 | `python3 scripts/create_skill.py optimize <skill-path>` |
 | 深度评审 | `python3 scripts/create_skill.py review <skill-path>` |
 | 端到端测试 | `python3 scripts/create_skill.py test <skill-path>` |
-| 迁移升级 | `python3 scripts/create_skill.py upgrade <skill-path> --apply` |
 | 规范校验 | `python3 scripts/validate_skill.py <skill-path>` |
-| 触发诊断 | `python3 scripts/diagnose_trigger.py <skill-path>` |
-| 版本管理 | `python3 scripts/version_manager.py status <skill-path>` |
-| 安全扫描 | `python3 scripts/security_scan.py <skill-path>` |
-| 使用统计 | `python3 scripts/skill_observability.py report <skill-name>` |
-| 一键安装 | `bash scripts/install.sh <skill-path>` |
-| 供应链扫描 | `python3 scripts/supply_chain_scan.py <skill-path> --generate-sbom` |
-| 评估测试 | `python3 scripts/run_eval.py --type all` |
-| 基准聚合 | `python3 scripts/aggregate_benchmark.py <iteration_dir> --skill-name <name>` |
-| 描述优化 | `python3 scripts/run_loop.py --eval-set <path> --skill-path <path>` |
-| 反馈循环 | `python3 scripts/feedback_loop.py init <skill_path>` |
-| 发布审计 | `python3 scripts/release_audit.py --skill <skill-path>` |
-| 打包发布 | `bash scripts/package.sh --output <dir>` |
+
+> **高级命令**（评估/安全/运维/描述优化等20+个）见 `references/command-reference.md`
 
 > **退出码**：0=成功，1=校验失败，2=参数错误，3=运行时错误。详见 `references/exit-codes.md`
 
@@ -268,22 +257,16 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 避免常见坑，需要30个真实案例 | `references/gotchas-collection.md` |
 | 安全审计，需要检查清单 | `references/security-audit-checklist.md` |
 | 端到端测试，需要完整手册 | `references/e2e-testing-playbook.md` |
-| **自动评分（Grader Agent）** | `scripts/grader.py <run_dir>` |
-| **盲A/B比较（Comparator Agent）** | `scripts/comparator.py <run_a> <run_b>` |
-| **基准分析（Analyzer Agent）** | `scripts/analyzer.py <benchmark_dir>` |
-| **评估流程编排（Executor Agent）** | `scripts/executor.py full <skill_dir>` |
-| **交互式HTML审核界面（Eval Viewer）** | `scripts/eval_viewer.py <benchmark_dir>` |
-| **自动描述改进（Description Optimizer）** | `scripts/description_optimizer.py <skill_dir>` |
-| **8层评估框架（Eight-Layer Evaluation）** | `scripts/eval_framework.py <run_dir>` |
 | 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
 | 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
-| 自进化闭环+经验库（执行→评估→复盘→经验提取→下批参考） | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
+| 自进化闭环+经验库 | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
 | 管理技术债，需要审计偿还流程 | `references/tech-debt-management.md` |
-| 多模型测试，验证技能跨模型一致性 | `references/multi-model-testing-guide.md` |
+| 多模型测试，验证跨模型一致性 | `references/multi-model-testing-guide.md` |
 | 触发路由/must_read专项测试 | `references/routing-mustread-test-cases.md` |
 | 做规范评审，需要7维度检查清单 | `references/review-process-guide.md` |
-| CI/CD集成，需要退出码规范 | `references/exit-codes.md` |
 | 快速上手/常见问题/完整示例 | `references/quick-start.md` / `references/faq.md` / `examples/` |
+
+> **评估工具脚本**（grader/comparator/analyzer/executor/eval_viewer/eval_framework等9个）用法见 `references/command-reference.md`
 
 ### L3: 脚本自动完成 + assets资源 + 官方权威资源
 规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
