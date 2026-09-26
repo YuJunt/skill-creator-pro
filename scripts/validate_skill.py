@@ -246,6 +246,59 @@ def check_scripts_integrity(skill_path):
     return issues
 
 
+def check_runtime_guard(skill_path):
+    """检查运行时保障（Runtime Guard）—— 防LLM偷懒核心机制"""
+    issues = []
+    scripts_dir = os.path.join(skill_path, "scripts")
+    runtime_guard_path = os.path.join(scripts_dir, "runtime_guard.py")
+
+    if not os.path.exists(runtime_guard_path):
+        issues.append({
+            "level": "medium",
+            "item": "scripts/runtime_guard.py",
+            "message": "缺少运行时保障脚本（推荐添加，防止LLM偷懒/跳步/浅用）"
+        })
+        return issues
+
+    # 检查runtime_guard.py是否包含核心功能
+    try:
+        with open(runtime_guard_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        return issues
+
+    required_features = [
+        ("verify", "完成验证（检查必需步骤是否完成）"),
+        ("report", "使用覆盖率报告（工具使用跟踪）"),
+        ("track", "步骤/工具调用跟踪"),
+    ]
+
+    for feature, desc in required_features:
+        if feature not in content:
+            issues.append({
+                "level": "low",
+                "item": "scripts/runtime_guard.py",
+                "message": f"运行时guard缺少{desc}功能"
+            })
+
+    # 检查SKILL.md是否提到runtime_guard
+    skill_md_path = os.path.join(skill_path, "SKILL.md")
+    if os.path.exists(skill_md_path):
+        try:
+            with open(skill_md_path, "r", encoding="utf-8") as f:
+                skill_md = f.read()
+            if "runtime_guard" not in skill_md and "运行时保障" not in skill_md and "完成验证" not in skill_md:
+                issues.append({
+                    "level": "low",
+                    "item": "SKILL.md",
+                    "message": "SKILL.md未提到runtime_guard（建议在Gotchas或工作流中说明如何使用）"
+                })
+        except Exception:
+            pass
+
+    return issues
+
+
 def safe_read_file(path, max_bytes=MAX_FILE_SIZE_BYTES):
     """安全读取文件，处理非UTF-8编码。返回(内容, 错误信息)。"""
     try:
@@ -356,6 +409,9 @@ def validate_skill(skill_path):
 
     # 检查脚本完整性（语法错误等，不需要SKILL.md）
     result["issues"].extend(check_scripts_integrity(skill_path))
+
+    # 检查运行时保障（Runtime Guard）—— 防LLM偷懒
+    result["issues"].extend(check_runtime_guard(skill_path))
 
     # 统计
     for issue in result["issues"]:

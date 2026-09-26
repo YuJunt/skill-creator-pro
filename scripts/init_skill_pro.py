@@ -189,25 +189,28 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
 
     # 根据设计哲学生成不同的文件
     if philosophy == "capability":
-        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例
+        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障
         files["scripts/main.py"] = _generate_capability_main_script(skill_title)
+        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
 
     elif philosophy == "process":
-        # Process模式：references方法论文档 + 检查清单 + 编排脚本 + 校验脚本 + 工作流示例 + 评估用例
+        # Process模式：references方法论文档 + 检查清单 + 编排脚本 + 校验脚本 + 工作流示例 + 评估用例 + 运行时保障
         files["references/workflow-guide.md"] = WORKFLOW_GUIDE_TEMPLATE.format(skill_title=skill_title)
         files["references/checklist.md"] = CHECKLIST_TEMPLATE.format(skill_title=skill_title)
         files["scripts/orchestrator.py"] = ORCHESTRATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/validator.py"] = PROCESS_VALIDATOR_TEMPLATE.replace("{skill_title}", skill_title)
+        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
         files["examples/example-workflow.md"] = EXAMPLE_WORKFLOW_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
 
     else:
-        # Mixed模式：完整专业技能（3个脚本 + 2个references + 1个示例）
+        # Mixed模式：完整专业技能（4个脚本 + 2个references + 1个示例）
         files["scripts/main.py"] = _generate_capability_main_script(skill_title)
         files["scripts/orchestrator.py"] = ORCHESTRATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/validator.py"] = VALIDATOR_TEMPLATE.replace("{skill_title}", skill_title)
+        files["scripts/runtime_guard.py"] = RUNTIME_GUARD_TEMPLATE.replace("{skill_title}", skill_title)
         files["references/best-practices.md"] = BEST_PRACTICES_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
