@@ -19,29 +19,33 @@ from pathlib import Path
 
 def load_run_summary(run_dir):
     """加载运行摘要"""
-    run_path = Path(run_dir)
+    try:
+        run_path = Path(run_dir)
 
-    # 读取grading.json
-    grading_file = run_path / "grading.json"
-    if grading_file.exists():
-        with open(grading_file, "r", encoding="utf-8") as f:
-            grading = json.load(f)
-    else:
-        grading = {"pass_rate": 0, "passed": 0, "total_expectations": 0}
+        # 读取grading.json
+        grading_file = run_path / "grading.json"
+        if grading_file.exists():
+            with open(grading_file, "r", encoding="utf-8") as f:
+                grading = json.load(f)
+        else:
+            grading = {"pass_rate": 0, "passed": 0, "total_expectations": 0}
 
-    # 读取对话记录长度（作为成本代理）
-    conversation_file = run_path / "conversation.txt"
-    conv_length = 0
-    if conversation_file.exists():
-        conv_length = len(conversation_file.read_text(encoding="utf-8", errors="replace"))
+        # 读取对话记录长度（作为成本代理）
+        conversation_file = run_path / "conversation.txt"
+        conv_length = 0
+        if conversation_file.exists():
+            conv_length = len(conversation_file.read_text(encoding="utf-8", errors="replace"))
 
-    return {
-        "run_dir": str(run_dir),
-        "pass_rate": grading.get("pass_rate", 0),
-        "passed": grading.get("passed", 0),
-        "total_expectations": grading.get("total_expectations", 0),
-        "conversation_length": conv_length,
-    }
+        return {
+            "run_dir": str(run_dir),
+            "pass_rate": grading.get("pass_rate", 0),
+            "passed": grading.get("passed", 0),
+            "total_expectations": grading.get("total_expectations", 0),
+            "conversation_length": conv_length,
+        }
+    except Exception as e:
+        print(f"⚠️ 加载运行摘要失败: {e}", file=sys.stderr)
+        return {"run_dir": str(run_dir), "pass_rate": 0, "passed": 0, "total_expectations": 0, "conversation_length": 0}
 
 
 def compare_runs(run_a_dir, run_b_dir, criteria=None):

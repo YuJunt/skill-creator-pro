@@ -23,14 +23,18 @@ from pathlib import Path
 
 def load_grading_files(benchmark_dir):
     """加载目录下所有grading.json"""
-    gradings = []
-    bench_path = Path(benchmark_dir)
-    for g in bench_path.glob("**/grading.json"):
-        with open(g, "r", encoding="utf-8") as f:
-            grading = json.load(f)
-            grading["file"] = str(g)
-            gradings.append(grading)
-    return gradings
+    try:
+        gradings = []
+        bench_path = Path(benchmark_dir)
+        for g in bench_path.glob("**/grading.json"):
+            with open(g, "r", encoding="utf-8") as f:
+                grading = json.load(f)
+                grading["file"] = str(g)
+                gradings.append(grading)
+        return gradings
+    except Exception as e:
+        print(f"⚠️ 加载grading.json失败: {e}", file=sys.stderr)
+        return []
 
 
 def analyze_baseline(benchmark_dir):
