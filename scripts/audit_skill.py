@@ -661,6 +661,82 @@ def audit_skill(skill_path):
         result["grade"] = "不合格"
 
     result["weighted_pct"] = weighted_pct
+
+    # === 6维度评估对齐（SkillCreator.ai标准：Structure/Content/Evidence/Usage/Toolchain/Freshness）===
+    # 把36项检查映射到6维度，提供业界标准视角
+    dimension_mapping = {
+        # Structure（结构）：frontmatter/SKILL.md结构/目录/渐进式披露
+        "frontmatter规范": "Structure", "description三要素": "Structure",
+        "SKILL.md行数": "Structure", "渐进式披露": "Structure",
+        "文件引用一级深度": "Structure", "目录结构": "Structure",
+        "设计哲学明确": "Structure", "模块化拆分": "Structure",
+        # Content（内容）：Gotchas/示例/输出格式/方法论
+        "Gotchas驱动": "Content", "示例驱动": "Content",
+        "输出格式文档化": "Content", "方法论知识库": "Content",
+        "自由度匹配": "Content", "术语一致": "Content",
+        "示例具体": "Content",
+        # Evidence（证据）：评估用例/端到端测试/基准/多模型
+        "端到端实测": "Evidence", "评估用例": "Evidence",
+        "多模型测试": "Evidence", "规范评审": "Evidence",
+        # Usage（使用）：触发路由/描述质量/模式选择/用户体验
+        "触发路由": "Usage", "description触发词": "Usage",
+        "技能组合友好": "Usage", "预加载机制": "Usage",
+        # Toolchain（工具链）：脚本/错误处理/校验/配置/编排
+        "脚本完整性": "Toolchain", "错误处理": "Toolchain",
+        "校验门禁": "Toolchain", "配置中心": "Toolchain",
+        "编排脚本": "Toolchain", "状态管理": "Toolchain",
+        "确定性推入代码": "Toolchain",
+        # Freshness（新鲜度）：版本/自进化/经验库/技术债
+        "自进化闭环": "Freshness", "经验回流": "Freshness",
+        "复盘机制": "Freshness", "指标监控": "Freshness",
+        "版本管理": "Freshness", "技术债管理": "Freshness",
+        "无时间敏感信息": "Freshness",
+    }
+
+    six_dimensions = {}
+    for dim in ["Structure", "Content", "Evidence", "Usage", "Toolchain", "Freshness"]:
+        six_dimensions[dim] = {"passed": 0, "total": 0, "items": []}
+
+    for layer_name, items in layers_data.items():
+        for item in items:
+            if item.get("n/a", False):
+                continue
+            item_name = item.get("item", "")
+            # 匹配维度（模糊匹配关键词）
+            matched_dim = None
+            for keyword, dim in dimension_mapping.items():
+                if keyword in item_name:
+                    matched_dim = dim
+                    break
+            if not matched_dim:
+                matched_dim = "Content"  # 默认归到Content
+            six_dimensions[matched_dim]["total"] += 1
+            if item["passed"]:
+                six_dimensions[matched_dim]["passed"] += 1
+            six_dimensions[matched_dim]["items"].append({
+                "item": item_name,
+                "passed": item["passed"],
+                "layer": layer_name,
+            })
+
+    # 计算每个维度的通过率和评级
+    for dim, data in six_dimensions.items():
+        if data["total"] > 0:
+            data["pct"] = round(data["passed"] / data["total"] * 100, 1)
+            if data["pct"] >= 90:
+                data["grade"] = "优秀"
+            elif data["pct"] >= 75:
+                data["grade"] = "良好"
+            elif data["pct"] >= 60:
+                data["grade"] = "合格"
+            else:
+                data["grade"] = "不合格"
+        else:
+            data["pct"] = 0
+            data["grade"] = "无数据"
+
+    result["six_dimensions"] = six_dimensions
+
     return result
 
 
@@ -695,6 +771,26 @@ def print_result(result, output_json=False):
         weight_label = {2: "权重×2", 1: "权重×1", 0.5: "权重×0.5"}[tl_data["weight"]]
         na_note = f" ({tl_data['na_count']}项不适用)" if tl_data["na_count"] > 0 else ""
         print(f"  {tl_name:4s} |{bar}| {tl_data['passed']}/{tl_data['total']}{na_note} ({weight_label})")
+
+    # 6维度评估（SkillCreator.ai标准）
+    if "six_dimensions" in result:
+        print(f"\n{'─'*70}")
+        print(f"🎯 6维度评估（业界标准：Structure/Content/Evidence/Usage/Toolchain/Freshness）:")
+        print(f"{'─'*70}")
+        dim_labels = {
+            "Structure": "结构（规范/目录/渐进式披露）",
+            "Content": "内容（Gotchas/示例/输出格式/方法论）",
+            "Evidence": "证据（评估用例/端到端测试/多模型）",
+            "Usage": "使用（触发路由/描述质量/用户体验）",
+            "Toolchain": "工具链（脚本/错误处理/校验/编排）",
+            "Freshness": "新鲜度（版本/自进化/经验库/技术债）",
+        }
+        for dim in ["Structure", "Content", "Evidence", "Usage", "Toolchain", "Freshness"]:
+            d = result["six_dimensions"][dim]
+            bar_len = int(d["pct"] / 100 * 15) if d["total"] > 0 else 0
+            bar = "█" * bar_len + "░" * (15 - bar_len)
+            print(f"  {dim:12s} |{bar}| {d['passed']}/{d['total']} ({d['pct']}%) - {d['grade']}")
+        print(f"  {'':12s}  {'':17s} {dim_labels['Structure']}")
 
     if result["issues"]["high"]:
         print(f"\n{'─'*70}")

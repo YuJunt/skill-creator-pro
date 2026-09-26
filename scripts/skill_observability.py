@@ -122,6 +122,10 @@ def main():
     imp_p = sub.add_parser("improve")
     imp_p.add_argument("skill_name")
 
+    # extract-gotchas（从使用日志中自动提取潜在Gotchas）
+    eg_p = sub.add_parser("extract-gotchas", help="从使用日志中自动提取潜在的Gotchas建议")
+    eg_p.add_argument("skill_name")
+
     # stats
     sub.add_parser("stats")
 
@@ -179,6 +183,67 @@ def main():
             "total_failures": len(fails),
             "suggestions": suggestions,
         }, ensure_ascii=False, indent=2))
+
+    elif args.command == "extract-gotchas":
+        """从使用日志中提取潜在的Gotchas（自动经验提取）"""
+        logs = read_logs(args.skill_name)
+        fails = [l for l in logs if l.get("result") == "fail" and l.get("action") != "user_feedback"]
+        feedbacks = [l for l in logs if l.get("action") == "user_feedback" and int(l.get("detail", "rating=3:").split("=")[1].split(":")[0]) < 3]
+
+        # 按action分类失败
+        fail_by_action = {}
+        for f in fails:
+            action = f.get("action", "unknown")
+            if action not in fail_by_action:
+                fail_by_action[action] = []
+            fail_by_action[action].append(f)
+
+        # 生成潜在的Gotchas建议
+        potential_gotchas = []
+        gid = 1
+        for action, action_fails in fail_by_action.items():
+            if len(action_fails) >= 2:  # 同一动作失败≥2次，值得提取为gotcha
+                # 收集失败详情
+                details = [f.get("detail", "") for f in action_fails if f.get("detail")]
+                common_detail = details[0] if details else "执行失败"
+
+                potential_gotchas.append({
+                    "id": f"GOTCHA-{gid:03d}",
+                    "trigger_action": action,
+                    "failure_count": len(action_fails),
+                    "symptom": f"执行{action}时反复失败（{len(action_fails)}次），常见错误：{common_detail[:100]}",
+                    "fix": f"检查{action}的输入参数和前置条件，添加错误处理和降级机制；如果是技能本身的问题，更新SKILL.md的Gotchas section",
+                    "cause": f"该动作缺少充分的错误处理或前置校验，导致同一问题反复出现",
+                    "confidence": "高" if len(action_fails) >= 5 else "中",
+                })
+                gid += 1
+
+        # 从低评分反馈中提取
+        for fb in feedbacks[:3]:  # 最多取3条低评分反馈
+            comment = fb.get("detail", "").split(":", 1)[-1].strip() if ":" in fb.get("detail", "") else fb.get("detail", "")
+            if comment and len(comment) > 5:
+                potential_gotchas.append({
+                    "id": f"GOTCHA-{gid:03d}",
+                    "trigger_action": "user_feedback",
+                    "failure_count": 1,
+                    "symptom": f"用户低评分反馈：{comment[:100]}",
+                    "fix": "分析用户反馈的具体问题，更新技能的输出格式或工作流程，确保下次不再出现同样问题",
+                    "cause": "技能的输出或行为不符合用户预期，需要从用户反馈中学习改进",
+                    "confidence": "中",
+                })
+                gid += 1
+
+        result = {
+            "skill": args.skill_name,
+            "total_logs": len(logs),
+            "total_failures": len(fails),
+            "low_rating_feedback": len(feedbacks),
+            "potential_gotchas_count": len(potential_gotchas),
+            "potential_gotchas": potential_gotchas,
+            "next_step": "请人工审核以上潜在Gotchas，确认后添加到技能的references/gotchas-collection.md和SKILL.md的Gotchas section",
+        }
+
+        print(json.dumps(result, ensure_ascii=False, indent=2))
 
     else:
         parser.print_help()
