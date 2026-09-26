@@ -369,6 +369,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
       - mixed: 混合型（完整SKILL.md + 编排脚本 + 校验脚本 + references）
     """
     # 参数处理
+    original_name = skill_name
     skill_title = skill_title or skill_name.replace("-", " ").title()
 
     # 技能名安全校验（防止路径遍历攻击）
@@ -381,9 +382,25 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
     if ".." in skill_name:
         print(f"❌ 技能名不能包含 '..': {skill_name}")
         sys.exit(1)
+
+    # 检测非ASCII字符（如中文），自动转换为英文目录名
     if not re.match(r"^[a-z0-9-]+$", skill_name):
-        print(f"❌ 技能名格式错误: {skill_name}（只允许小写字母、数字、连字符）")
-        sys.exit(1)
+        # 检查是否包含非ASCII字符
+        if any(ord(c) > 127 for c in skill_name):
+            # 自动生成英文目录名
+            import hashlib
+            name_hash = hashlib.md5(skill_name.encode('utf-8')).hexdigest()[:6]
+            english_name = f"skill-{name_hash}"
+            print(f"⚠️  检测到非英文名称: '{skill_name}'")
+            print(f"   目录名自动转换为: '{english_name}'（跨平台兼容性更好）")
+            print(f"   技能标题保持为: '{skill_name}'")
+            if skill_title == original_name.replace("-", " ").title():
+                skill_title = original_name  # 标题保持用户输入的原始名称
+            skill_name = english_name
+        else:
+            print(f"❌ 技能名格式错误: {skill_name}（只允许小写字母、数字、连字符）")
+            sys.exit(1)
+
     if skill_name.startswith("-"):
         print(f"❌ 技能名不能以连字符开头: {skill_name}")
         sys.exit(1)
@@ -542,9 +559,20 @@ def main():
     parser.add_argument("--description", help="技能描述（默认根据设计哲学生成）")
     parser.add_argument("--triggers", help="触发词（默认用skill_name）")
     parser.add_argument("--not-for", help="不适用于（默认'其他不相关的任务'）")
-    parser.add_argument("--philosophy", choices=["capability", "process", "mixed"], default="mixed",
+    parser.add_argument("--philosophy", default="mixed",
                         help="设计哲学：capability(工具包装型)/process(方法论型)/mixed(混合型，默认)")
     args = parser.parse_args()
+
+    # 手动验证设计哲学（提供更友好的错误提示）
+    valid_philosophies = ["capability", "process", "mixed"]
+    if args.philosophy not in valid_philosophies:
+        print(f"❌ 无效的设计哲学: '{args.philosophy}'")
+        print(f"   可选值: {', '.join(valid_philosophies)}")
+        print(f"   说明:")
+        print(f"     - capability: 工具包装型（简洁SKILL.md + 核心工具脚本）")
+        print(f"     - process: 方法论型（完整SKILL.md流程 + references方法论文档）")
+        print(f"     - mixed: 混合型（完整SKILL.md + 编排脚本 + 校验脚本 + references，默认）")
+        sys.exit(1)
 
     skill_path = init_skill(
         skill_name=args.skill_name,

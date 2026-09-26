@@ -73,9 +73,11 @@ MODES = {
             # 中文
             "评审", "审计", "规范检查", "检查", "审查", "评估", "评测",
             "诊断", "分析", "深度审计", "代码审查", "规范评审",
+            "看看", "检查一下", "怎么样", "好不好", "合格吗", "达标吗",
+            "现状", "有什么问题", "问题在哪", "质量如何",
             # 英文
             "review", "audit", "check", "inspect", "evaluate", "assess",
-            "diagnose", "analyze", "code review",
+            "diagnose", "analyze", "code review", "how is", "quality",
         ],
         "must_read": [
             "references/36-element-checklist.md",
@@ -91,9 +93,11 @@ MODES = {
             # 中文
             "测试", "实测", "验证", "压力测试", "端到端", "E2E",
             "回归测试", "单元测试", "集成测试", "跑测试", "做测试",
+            "跑一下", "试试", "验证一下", "能不能用", "好不好用",
+            "跑通", "实测一下", "能不能跑", "效果如何",
             # 英文
             "test", "e2e", "testing", "verify", "validation", "regression",
-            "stress test", "benchmark",
+            "stress test", "benchmark", "try it", "does it work",
         ],
         "must_read": [
             "references/eval-practice.md",
@@ -238,8 +242,8 @@ def rule_engine_scoring(user_input: str, base_scores: Dict[str, float]) -> Dict[
     action_signals = {
         "create": ["新的", "一个新", "从零", "空白", "模板"],
         "optimize": ["现有", "已经", "当前", "这个技能", "我的技能"],
-        "review": ["怎么样", "如何", "质量", "规范", "标准"],
-        "test": ["能不能", "是否", "通过", "跑通", "效果"],
+        "review": ["怎么样", "如何", "质量", "规范", "标准", "这个技能", "我的技能", "现状", "有什么问题", "问题在哪"],
+        "test": ["能不能", "是否", "通过", "跑通", "效果", "这个技能", "我的技能", "能不能跑", "好不好用", "实测"],
     }
     for mode, signals in action_signals.items():
         for signal in signals:

@@ -1,0 +1,9 @@
+{
+  "allowed_files": [],
+  "allowed_patterns": [
+    "文件写入：技能会写入文件",
+    "with open(",
+    "args.output"
+  ],
+  "exclude_dirs": ["__pycache__/", ".pytest_cache/", ".git/"]
+}
