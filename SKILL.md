@@ -194,9 +194,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 ---
 
 ## 技能创建最佳实践（详见references）
-
-> 完整最佳实践见 `references/best-practices.md`，包含：默认创建位置（环境自适应）、网站内容收集默认使用Browser Use、不应该包含什么（禁止README/CHANGELOG等）、6步迭代流程。
->
+> 完整最佳实践见 `references/best-practices.md`：默认创建位置（环境自适应）、网站收集默认Browser Use、禁止README/CHANGELOG等额外文档、6步迭代流程。
 > **核心原则**：技能创建在 `workspace/.user_skills` 目录内，网站收集默认Browser Use，禁止额外辅助文档，遵循6步迭代流程。
 
 ---
