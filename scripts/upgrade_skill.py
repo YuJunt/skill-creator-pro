@@ -182,10 +182,31 @@ def _check_description(content: str) -> str:
         return False
     end = content.find('---', 3)
     fm = content[3:end]
-    desc_line = [l for l in fm.split('\n') if l.strip().startswith('description:')]
-    if not desc_line:
+    lines = fm.split('\n')
+    # 找到description起始行（支持 description: / description: > / description: |）
+    desc_start = -1
+    for i, l in enumerate(lines):
+        if l.strip().startswith('description:'):
+            desc_start = i
+            break
+    if desc_start == -1:
         return False
-    desc = desc_line[0].lower()
+    # 提取description完整内容（支持YAML折叠标量>/|）
+    first_line = lines[desc_start].strip()
+    if first_line.endswith('>') or first_line.endswith('|') or first_line.endswith('>-') or first_line.endswith('|-'):
+        # 折叠标量：继续读取缩进行，直到遇到非缩进行或frontmatter结束
+        desc_parts = []
+        for j in range(desc_start + 1, len(lines)):
+            if lines[j].strip() == '':
+                continue
+            if lines[j].startswith(' ') or lines[j].startswith('\t'):
+                desc_parts.append(lines[j].strip())
+            else:
+                break
+        desc = ' '.join(desc_parts).lower()
+    else:
+        # 单行description
+        desc = first_line[len('description:'):].strip().lower()
     has_what = len(desc) > 30
     has_when = any(w in desc for w in ['when', 'use', '触发', '适用于', '场景'])
     has_trigger = any(w in desc for w in ['触发', 'trigger', '"'])

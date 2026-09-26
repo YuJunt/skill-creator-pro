@@ -69,7 +69,9 @@ def check_frontmatter(skill_md_path):
         desc = desc_match.group(1).strip().strip('"').strip("'")
         # 去除折叠符号 >
         desc = desc.lstrip(">").strip()
-        if len(desc) > MAX_DESCRIPTION_LENGTH:
+        if len(desc) < 10:
+            issues.append({"level": "high", "item": "frontmatter.description", "message": f"description过短: 仅{len(desc)}字符，必须>10字符且包含三要素"})
+        elif len(desc) > MAX_DESCRIPTION_LENGTH:
             issues.append({"level": "high", "item": "frontmatter.description", "message": f"description过长: {len(desc)}字符（max {MAX_DESCRIPTION_LENGTH}）"})
         # 检查是否包含触发词
         if not re.search(r"[“\"'](.+?)[”\"']", desc) and "触发" not in desc and "when" not in desc.lower():

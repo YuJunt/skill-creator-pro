@@ -19,7 +19,7 @@ description: >
 >
 > **会话保持（防止长对话丢失技能状态）**：一旦技能被触发，在后续对话中持续保持激活状态，直到用户明确说"退出技能"或"切换到无关话题"。每轮回复都必须输出路由行，即使是简短回复也不能省略。
 
-> **版本**: v1.0.0 | **最低Python版本**: 3.8+ | **许可证**: MIT
+> **版本**: v2.1.0 | **最低Python版本**: 3.8+ | **许可证**: MIT
 >
 > **设计哲学**: 混合型（Mixed）——工具脚本（validate/audit/init）+ 方法论（36项清单+最佳实践）结合。适合需要工具+判断的复杂技能创建任务。
 
@@ -101,7 +101,11 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 端到端测试 | `python3 scripts/create_skill.py test <skill-path>` |
 | 迁移升级 | `python3 scripts/create_skill.py upgrade <skill-path> --apply` |
 | 规范校验 | `python3 scripts/validate_skill.py <skill-path>` |
+| 触发诊断 | `python3 scripts/diagnose_trigger.py <skill-path>` |
+| 版本管理 | `python3 scripts/version_manager.py status <skill-path>` |
 | 安全扫描 | `python3 scripts/security_scan.py <skill-path>` |
+| 使用统计 | `python3 scripts/skill_observability.py report <skill-name>` |
+| 一键安装 | `bash scripts/install.sh <skill-path>` |
 | 供应链扫描 | `python3 scripts/supply_chain_scan.py <skill-path> --generate-sbom` |
 | 评估测试 | `python3 scripts/run_eval.py --type all` |
 | 发布审计 | `python3 scripts/release_audit.py --skill <skill-path>` |
@@ -116,13 +120,14 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 > **自由度说明**: 按步骤标注自由度等级——🟢高自由度（灵活调整，可根据情况变化）/ 🟡中自由度（推荐流程，建议按此执行）/ 🔴低自由度（必须严格执行，不允许跳过或变通）。脆弱步骤（出错代价高）用🔴，灵活步骤用🟢。
 
 ### 新建技能流程
+0. **先写eval（RED-GREEN-REFACTOR）** 🔴低自由度：写3个eval用例（正常/边界/质量），定义通过标准。详见 `references/eval-grader-design.md`
 1. **需求分析** 🟢高自由度：与用户确认技能目标、触发场景、设计哲学
 2. **架构设计** 🟡中自由度：选择设计哲学，规划目录结构，确定scripts/references/examples
 3. **模板生成** 🔴低自由度：必须运行 `python3 scripts/init_skill_pro.py`，禁止手动创建目录结构
 4. **内容编写** 🟢高自由度：编写SKILL.md、references、examples，替换TODO
 5. **规范校验** 🔴低自由度：必须运行 `python3 scripts/validate_skill.py`，有高优先级问题必须修复
 6. **深度审计** 🔴低自由度：必须运行 `python3 scripts/audit_skill.py`，必备层必须全部达标
-7. **端到端测试** 🟡中自由度：真实跑通技能流程，验证输出质量
+7. **端到端测试** 🟡中自由度：跑eval用例验证，做baseline对比（无技能vs有技能），验证输出质量
 
 ### 验证循环（必须执行）
 > **执行→验证→修正**：每个步骤完成后必须验证，发现问题立即修正，不允许跳过验证直接进入下一步。
@@ -188,42 +193,6 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 
 ---
 
-## 快速开始
-
-```bash
-# 技能目录
-cd /home/user/.doubao/agent_mode/workspace/.user_skills/skill-creator-pro
-
-# 1. 新建技能（低自由度，必须执行；--philosophy可选capability/process/mixed）
-python3 scripts/init_skill_pro.py <skill-name> --path /home/user/.doubao/agent_mode/workspace/.user_skills --philosophy mixed
-
-# 2. 校验技能规范（低自由度，必须执行）
-python3 scripts/validate_skill.py <skill-path>
-
-# 3. 深度审计技能（低自由度，必须执行）
-python3 scripts/audit_skill.py <skill-path>
-
-# 3.5 安全扫描（低自由度，必须执行；检测提示注入/危险代码/数据泄露/隐藏指令）
-python3 scripts/security_scan.py <skill-path>
-
-# 4. 编排脚本（统一入口，强制顺序执行，推荐使用）
-python3 scripts/create_skill.py create <skill-name> --path <dir> --philosophy mixed  # 新建
-python3 scripts/create_skill.py optimize <skill-path>  # 优化验证
-python3 scripts/create_skill.py review <skill-path>    # 评审
-python3 scripts/create_skill.py test <skill-path>      # 端到端测试
-
-# 5. 输出校验（硬门禁，校验不通过就报错）
-python3 scripts/output_validator.py <skill-path>
-
-# 6. 查看36项检查清单（中自由度，按需阅读）
-cat references/36-element-checklist.md
-```
-
-**脚本目录**：`/home/user/.doubao/agent_mode/workspace/.user_skills/skill-creator-pro/scripts`
-**5个脚本**：init_skill_pro.py（模板生成）/ validate_skill.py（规范校验）/ audit_skill.py（深度审计）/ create_skill.py（编排脚本）/ output_validator.py（输出校验）
-
----
-
 ## 技能创建最佳实践（详见references）
 
 > 完整最佳实践见 `references/best-practices.md`，包含：默认创建位置（环境自适应）、网站内容收集默认使用Browser Use、不应该包含什么（禁止README/CHANGELOG等）、6步迭代流程。
@@ -277,6 +246,14 @@ cat references/36-element-checklist.md
 | 模板填充指南（14个模板每个占位符怎么填+质量标准） | `references/template-filling-guide.md` |
 | 选择技能设计哲学（工具包装vs方法论） | `references/design-philosophies.md` |
 | 评估驱动开发（先建eval再写技能） | `references/evaluation-driven-development.md` |
+| 评估分级器设计（code-based/model-based/human三种grader） | `references/eval-grader-design.md` |
+| 企业级技能管理（去重/合并/版本/分发） | `references/enterprise-skill-management.md` |
+| Prompt Caching优化（技能结构如何利用缓存降成本） | `references/prompt-caching-guide.md` |
+| MCP集成指导（什么时候用MCP+安全注意事项+降级策略） | `references/mcp-integration-guide.md` |
+| 技能生命周期（归档/删除SLA+退役信号+上下文膨胀监控） | `references/skill-lifecycle-guide.md` |
+| 盲比较A/B测试（消除偏见的版本对比方法） | `references/blind-comparator-guide.md` |
+| 技能注册表（程序化发现所有技能的元数据格式） | `references/skill-registry-format.md` |
+| 需求发现（从不完备brief中主动发现遗漏需求） | `references/requirement-discovery-guide.md` |
 | 自由度匹配（根据任务脆弱性调整指令严格程度） | `references/degrees-of-freedom.md` |
 | 安全审计（创建/使用第三方技能的安全检查） | `references/security-audit-checklist.md` |
 | 技能组合（一技能一职责，多技能组合原则） | `references/skill-composition.md` |
@@ -298,6 +275,7 @@ cat references/36-element-checklist.md
 | 建设经验库，需要结构/提取/自净化/持久化完整方案 | `references/experience-library-guide.md` |
 | 管理技术债，需要审计偿还流程 | `references/tech-debt-management.md` |
 | 做端到端实测，需要完整流程模板 | `references/e2e-testing-playbook.md` |
+| 多模型测试，验证技能跨模型一致性 | `references/multi-model-testing-guide.md` |
 | 触发路由/must_read专项测试，需要55个测试用例 | `references/routing-mustread-test-cases.md` |
 | 做规范评审，需要7维度检查清单 | `references/review-process-guide.md` |
 | CI/CD集成，需要退出码规范 | `references/exit-codes.md` |
@@ -306,25 +284,14 @@ cat references/36-element-checklist.md
 | 看完整示例，照着做 | `examples/` 里的示例 |
 
 ### L3: 脚本自动完成 + assets资源 + 官方权威资源
-规范校验（validate_skill.py）/深度审计（audit_skill.py）/模板生成（init_skill_pro.py）——全部脚本做，你不用关心实现细节。
-
-**assets/ 目录**：存放不加载到上下文、但在输出中使用的文件（模板、图片、图标、字体、示例文档等）。创建技能时 `init_skill_pro.py` 会自动创建空的 `assets/` 目录，按需放入资源文件。
-
-**official/ 目录（权威参考层，借鉴agent-plugin-creator）**：内置平台官方 `skill-creator-for-work` 作为权威规范参考。当需要确认官方标准、对齐官方最佳实践、或与官方技能做横向对比时查阅。**注意**：official/是只读权威参考，不要修改其中的文件；skill-creator-pro是官方技能的专业增强版，在官方基础上增加了触发路由/防偷懒/深度审计/安全扫描/集成测试等专业能力。
+规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
 
 ---
 
 ## 技能组合
 
-**本技能可以与以下技能组合使用**：
-- `skill-creator-for-work`（基础版技能创建）：快速创建简单技能
-- `doubao-coding-review-code`（代码审查）：审查技能脚本代码质量
-- `doubao-coding-optimize-performance`（性能优化）：优化技能脚本性能
-- `verifier-hub`（产物验证）：验证技能生成的文件格式
-
-**不适合组合的场景**：
-- 简单prompt编写（不需要技能创建工具）
-- 非Skill格式的提示词优化（不在本技能范围内）
+**可组合**：skill-creator-for-work（基础创建）/ doubao-coding-review-code（代码审查）/ doubao-coding-optimize-performance（性能优化）/ verifier-hub（产物验证）
+**不适合**：简单prompt编写、非Skill格式提示词优化、与技能创建无关的通用对话
 
 ---
 

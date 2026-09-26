@@ -212,6 +212,35 @@ class SecurityScanner:
     def __init__(self, skill_path: str):
         self.skill_path = os.path.abspath(skill_path)
         self.report = SecurityReport(skill_path=skill_path)
+        # 加载技能级白名单（.security-whitelist.json）
+        self.skill_whitelist = self._load_skill_whitelist()
+
+    def _load_skill_whitelist(self) -> dict:
+        """加载技能目录下的 .security-whitelist.json，允许技能声明哪些文件/模式是正常功能"""
+        wl_path = os.path.join(self.skill_path, ".security-whitelist.json")
+        if not os.path.isfile(wl_path):
+            return {"allowed_files": [], "allowed_patterns": []}
+        try:
+            import json
+            with open(wl_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {
+                "allowed_files": data.get("allowed_files", []),
+                "allowed_patterns": data.get("allowed_patterns", []),
+            }
+        except Exception:
+            return {"allowed_files": [], "allowed_patterns": []}
+
+    def _is_skill_whitelisted(self, rel_path: str, message: str) -> bool:
+        """检查风险是否被技能级白名单豁免"""
+        # 文件级白名单
+        if rel_path in self.skill_whitelist.get("allowed_files", []):
+            return True
+        # 模式级白名单（消息包含关键词即豁免）
+        for pattern in self.skill_whitelist.get("allowed_patterns", []):
+            if pattern.lower() in message.lower():
+                return True
+        return False
 
     def scan(self) -> SecurityReport:
         """执行完整扫描"""
@@ -294,6 +323,9 @@ class SecurityScanner:
         for line_num, line in enumerate(lines, 1):
             for pattern, message, suggestion in patterns:
                 if re.search(pattern, line):
+                    # 技能级白名单豁免
+                    if self._is_skill_whitelisted(rel_path, message):
+                        continue
                     snippet = line.strip()[:120]
                     # 确定严重度
                     if category == "injection":

@@ -90,7 +90,7 @@ class TestE2ECreateSkill:
         assert "触发词" in content
         assert "不适用于" in content
 
-    def test_created_skill_no_pl3_residue(self, created_skill):
+    def test_created_skill_no_domain_residue(self, created_skill):
         """测试创建的技能没有特定领域残留"""
         result = run_script("output_validator.py", created_skill, "--mode", "create")
         assert result.returncode == 0, f"输出校验失败: {result.stdout}"

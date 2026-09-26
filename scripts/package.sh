@@ -154,7 +154,11 @@ zip -r -q "$ARCHIVE_PATH" "$SKILL_NAME/" \
     -x "*.pyc" \
     -x "*.pyo" \
     -x "*/.pytest_cache/*" \
-    -x "*/.git/*"
+    -x "*/.git/*" \
+    -x "*/CHANGELOG.md" \
+    -x "*/CONTRIBUTING.md" \
+    -x "*/docs/*" \
+    -x "*/official/*"
 
 if [ ! -f "$ARCHIVE_PATH" ]; then
     error "压缩包创建失败"
