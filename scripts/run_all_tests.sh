@@ -82,7 +82,7 @@ record_result() {
     if [ $passed -lt $total ]; then
         status="❌"
     fi
-    LAYER_RESULTS+=("$status $layer $name: $passed/$total ($(echo "scale=1; $passed*100/$total" | bc 2>/dev/null || echo "?")%)")
+    LAYER_RESULTS+=("$status $layer $name: $passed/$total ($(python3 -c "print(f'{$passed*100/$total:.1f}')" 2>/dev/null || echo "?")%)")
     TOTAL_TESTS=$((TOTAL_TESTS + total))
     PASSED_TESTS=$((PASSED_TESTS + passed))
 }
@@ -318,7 +318,7 @@ EOF
 - 总测试数: $TOTAL_TESTS
 - 通过: $PASSED_TESTS
 - 失败: $FAILED_TESTS
-- 通过率: $(echo "scale=1; $PASSED_TESTS*100/$TOTAL_TESTS" | bc 2>/dev/null || echo "?")%
+- 通过率: $(python3 -c "print(f'{$PASSED_TESTS*100/$TOTAL_TESTS:.1f}')" 2>/dev/null || echo "?")%
 
 ## 测试层级说明
 
@@ -382,7 +382,7 @@ main() {
         echo -e "  $result"
     done
     echo ""
-    echo -e "  总计: ${GREEN}$PASSED_TESTS${NC}/$TOTAL_TESTS 通过 ($(echo "scale=1; $PASSED_TESTS*100/$TOTAL_TESTS" | bc 2>/dev/null || echo "?")%)"
+    echo -e "  总计: ${GREEN}$PASSED_TESTS${NC}/$TOTAL_TESTS 通过 ($(python3 -c "print(f'{$PASSED_TESTS*100/$TOTAL_TESTS:.1f}')" 2>/dev/null || echo "?")%)"
     echo ""
     
     if [ $FAILED_TESTS -gt 0 ]; then

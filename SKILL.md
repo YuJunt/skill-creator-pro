@@ -138,6 +138,7 @@ allowed-tools:
 |------|------|-----------|
 | **深度审计/评审** | `references/36-element-checklist.md` | 审计技能时，36项检查清单 |
 | **端到端测试** | `references/eval-practice.md` | 做端到端测试时，测试手册 |
+| **评估用例模板** | `references/evaluation-cases.md` | 需要评估用例模板时，触发/输出/边界三类用例 |
 | **防LLM偷懒** | `references/llm-anti-laziness-guide.md` | 设计防偷懒机制时 |
 | **运行时保障** | `references/runtime-guard-guide.md` | 使用runtime_guard时 |
 | **自进化闭环** | `references/self-evolution-playbook.md` | 设计自进化机制时 |

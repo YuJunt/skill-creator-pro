@@ -236,10 +236,12 @@ def review_skill(skill_path):
     return {"success": True, "skill_path": skill_path, "mode": "review"}
 
 
-def test_skill(skill_path):
+def test_skill(skill_path, full=False):
     """模式：端到端测试"""
     print(f"\n{'#'*60}")
     print(f"# 端到端测试: {skill_path}")
+    if full:
+        print(f"# 模式: 完整测试（包含安全扫描+触发路由+渐进式披露）")
     print(f"{'#'*60}")
 
     # 状态检查
@@ -502,14 +504,82 @@ def test_skill(skill_path):
     else:
         print(f"  ⏭️  无scripts目录，跳过脚本冒烟测试")
 
+    # 步骤5：完整测试（仅--full模式）
+    if full:
+        print(f"\n--- 步骤5: 完整测试（安全扫描+触发路由+渐进式披露） ---")
+
+        # 5.1 安全扫描
+        security_scan = os.path.join(SCRIPT_DIR, "security_scan.py")
+        if os.path.isfile(security_scan):
+            print(f"\n  5.1 安全扫描:")
+            run_command(
+                [sys.executable, security_scan, skill_path],
+                "安全扫描（security_scan.py）"
+            )
+        else:
+            print(f"  ⚠️  security_scan.py 不存在，跳过安全扫描")
+
+        # 5.2 触发路由测试（如果技能有router.py）
+        skill_router = os.path.join(skill_path, "scripts", "router.py")
+        if os.path.isfile(skill_router):
+            print(f"\n  5.2 触发路由测试:")
+            test_messages = [
+                "帮我创建一个技能",
+                "优化一下这个技能",
+                "深度评审这个技能",
+                "测试一下这个技能",
+                "今天天气怎么样",  # 不应触发
+            ]
+            for msg in test_messages:
+                result = subprocess.run(
+                    [sys.executable, skill_router, msg, "--json"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    try:
+                        data = json.loads(result.stdout)
+                        mode = data.get("mode", "unknown")
+                        print(f"    '{msg[:20]}...' → {mode}")
+                    except json.JSONDecodeError:
+                        print(f"    '{msg[:20]}...' → 解析失败")
+                else:
+                    print(f"    '{msg[:20]}...' → 执行失败")
+        else:
+            print(f"\n  5.2 触发路由测试: ⏭️  技能无router.py，跳过")
+
+        # 5.3 渐进式披露完整性检查
+        print(f"\n  5.3 渐进式披露完整性检查:")
+        skill_md = os.path.join(skill_path, "SKILL.md")
+        if os.path.isfile(skill_md):
+            with open(skill_md, "r", encoding="utf-8") as f:
+                content = f.read()
+            checks = {
+                "frontmatter": content.startswith("---"),
+                "description": "description:" in content,
+                "gotchas": "gotcha" in content.lower(),
+                "workflow": "工作流" in content or "workflow" in content.lower(),
+                "references_ref": "references/" in content,
+                "scripts_ref": "scripts/" in content,
+            }
+            for name, passed in checks.items():
+                status = "✅" if passed else "❌"
+                print(f"    {status} {name}")
+            total_checks = len(checks)
+            passed_checks = sum(1 for v in checks.values() if v)
+            print(f"    总计: {passed_checks}/{total_checks} 通过")
+        else:
+            print(f"    ❌ SKILL.md 不存在")
+
     # 完成
     print(f"\n{'#'*60}")
     print(f"# ✅ 端到端测试完成: {skill_path}")
+    if full:
+        print(f"# 模式: 完整测试（所有高级测试已执行）")
     print(f"# 所有测试步骤都已通过")
     print(f"# 💡 经验沉淀: 测试完成后建议提取测试经验（边界场景/失败模式）写入案例库")
     print(f"{'#'*60}")
 
-    return {"success": True, "skill_path": skill_path, "mode": "test"}
+    return {"success": True, "skill_path": skill_path, "mode": "test", "full": full}
 
 
 def main():
@@ -553,6 +623,7 @@ def main():
     # test 模式
     p_test = subparsers.add_parser("test", help="端到端测试")
     p_test.add_argument("skill_path", help="技能目录路径")
+    p_test.add_argument("--full", action="store_true", help="完整测试（包含安全扫描+触发路由+渐进式披露）")
 
     # upgrade 模式（迁移升级现有技能）
     p_upgrade = subparsers.add_parser("upgrade", help="迁移升级现有技能到专业标准")
@@ -590,7 +661,7 @@ def main():
         elif args.command == "review":
             result = review_skill(args.skill_path)
         elif args.command == "test":
-            result = test_skill(args.skill_path)
+            result = test_skill(args.skill_path, full=getattr(args, 'full', False))
         elif args.command == "upgrade":
             sys.path.insert(0, SCRIPT_DIR)
             from upgrade_skill import analyze_gap, apply_migration, print_migration_report
