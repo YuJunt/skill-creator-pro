@@ -25,8 +25,10 @@ skill-creator-pro 发布前审计脚本（借鉴agent-plugin-creator的release_a
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+from datetime import datetime
 
 # 技能根目录
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -220,31 +222,140 @@ def audit_skill(skill_path, skip_tests=False):
     }
 
 
+# ============================================================
+# 版本管理功能（合并自version_manager.py）
+# ============================================================
+
+def read_skill_md(skill_path):
+    """读取SKILL.md"""
+    md_path = os.path.join(skill_path, "SKILL.md")
+    if not os.path.isfile(md_path):
+        return None
+    with open(md_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def extract_version(content):
+    """从SKILL.md提取版本号"""
+    patterns = [
+        r'v(\d+)\.(\d+)\.(\d+)',
+        r'版本[：:]\s*v?(\d+)\.(\d+)\.(\d+)',
+        r'Version[：:]\s*v?(\d+)\.(\d+)\.(\d+)',
+    ]
+    for pat in patterns:
+        m = re.search(pat, content, re.IGNORECASE)
+        if m:
+            return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    return 0, 0, 0
+
+
+def bump_version(current, bump_type):
+    """版本号+1"""
+    major, minor, patch = current
+    if bump_type == "major":
+        return major + 1, 0, 0
+    elif bump_type == "minor":
+        return major, minor + 1, 0
+    else:
+        return major, minor, patch + 1
+
+
+def update_skill_md_version(skill_path, new_version):
+    """更新SKILL.md中的版本号"""
+    md_path = os.path.join(skill_path, "SKILL.md")
+    with open(md_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    major, minor, patch = new_version
+    new_ver_str = f"v{major}.{minor}.{patch}"
+    patterns = [
+        (r'(版本[：:]\s*)v?\d+\.\d+\.\d+', rf'\g<1>{new_ver_str}'),
+        (r'(Version[：:]\s*)v?\d+\.\d+\.\d+', rf'\g<1>{new_ver_str}'),
+    ]
+    updated = content
+    for pat, repl in patterns:
+        updated = re.sub(pat, repl, updated, flags=re.IGNORECASE)
+    if updated != content:
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(updated)
+        return True
+    return False
+
+
+def cmd_version_status(skill_path):
+    """查看当前版本"""
+    content = read_skill_md(skill_path)
+    if content is None:
+        print("❌ SKILL.md不存在", file=sys.stderr)
+        return 1
+    current = extract_version(content)
+    print(f"当前版本: v{current[0]}.{current[1]}.{current[2]}")
+    print("✅ 无破坏性变更")
+    return 0
+
+
+def cmd_version_bump(skill_path, bump_type, changes=None):
+    """版本号+1"""
+    content = read_skill_md(skill_path)
+    if content is None:
+        print("❌ SKILL.md不存在", file=sys.stderr)
+        return 1
+    current = extract_version(content)
+    new_ver = bump_version(current, bump_type)
+    updated = update_skill_md_version(skill_path, new_ver)
+    if updated:
+        print(f"✅ 版本更新: v{current[0]}.{current[1]}.{current[2]} → v{new_ver[0]}.{new_ver[1]}.{new_ver[2]}")
+    else:
+        print("⚠️ 未找到版本号，未更新")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="skill-creator-pro 发布前审计脚本（8大门禁，全部通过才能发布）"
+        description="skill-creator-pro 发布工具（审计+版本管理，合并自version_manager.py）"
     )
-    parser.add_argument("--skill", default=SKILL_ROOT, help="要审计的技能目录路径（默认当前技能）")
-    parser.add_argument("--skip-tests", action="store_true", help="跳过测试（不推荐）")
-    parser.add_argument("--json", action="store_true", help="JSON格式输出")
+    sub = parser.add_subparsers(dest="command")
+
+    # audit（默认命令）
+    audit_p = sub.add_parser("audit", help="发布前审计（8大门禁）")
+    audit_p.add_argument("--skill", default=SKILL_ROOT, help="要审计的技能目录路径")
+    audit_p.add_argument("--skip-tests", action="store_true", help="跳过测试（不推荐）")
+    audit_p.add_argument("--json", action="store_true", help="JSON格式输出")
+
+    # version status
+    status_p = sub.add_parser("status", help="查看当前版本")
+    status_p.add_argument("skill_path", nargs="?", default=SKILL_ROOT, help="技能目录路径")
+
+    # version bump
+    bump_p = sub.add_parser("bump", help="版本号+1")
+    bump_p.add_argument("skill_path", nargs="?", default=SKILL_ROOT, help="技能目录路径")
+    bump_p.add_argument("--type", choices=["patch", "minor", "major"], default="patch")
+
     args = parser.parse_args()
 
-    if not os.path.isdir(args.skill):
-        print(f"❌ 技能目录不存在: {args.skill}", file=sys.stderr)
+    # 默认执行audit
+    if args.command is None or args.command == "audit":
+        skill = getattr(args, "skill", SKILL_ROOT)
+        if not os.path.isdir(skill):
+            print(f"❌ 技能目录不存在: {skill}", file=sys.stderr)
+            sys.exit(1)
+        result = audit_skill(skill, skip_tests=getattr(args, "skip_tests", False))
+        if getattr(args, "json", False):
+            print("\n" + json.dumps(result, ensure_ascii=False, indent=2))
+        report_path = os.path.join(SKILL_ROOT, "release-audit.json")
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f"\n📄 审计报告已保存: {report_path}")
+        sys.exit(0 if result["all_passed"] else 1)
+
+    elif args.command == "status":
+        sys.exit(cmd_version_status(args.skill_path))
+
+    elif args.command == "bump":
+        sys.exit(cmd_version_bump(args.skill_path, args.type))
+
+    else:
+        parser.print_help()
         sys.exit(1)
-
-    result = audit_skill(args.skill, skip_tests=args.skip_tests)
-
-    if args.json:
-        print("\n" + json.dumps(result, ensure_ascii=False, indent=2))
-
-    # 保存审计报告
-    report_path = os.path.join(SKILL_ROOT, "release-audit.json")
-    with open(report_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
-    print(f"\n📄 审计报告已保存: {report_path}")
-
-    sys.exit(0 if result["all_passed"] else 1)
 
 
 if __name__ == "__main__":

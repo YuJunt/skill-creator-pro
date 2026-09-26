@@ -121,7 +121,7 @@ allowed-tools:
 | **多模型测试** | multi_model_test.py | `python3 scripts/multi_model_test.py` |
 | **反馈循环** | feedback_loop.py | `python3 scripts/feedback_loop.py` |
 | **使用可观测性** | skill_observability.py | `python3 scripts/skill_observability.py log --skill-name <name>` |
-| **版本管理** | version_manager.py | `python3 scripts/version_manager.py` |
+| **版本管理** | release_audit.py | `python3 scripts/release_audit.py status/bump` |
 | **描述优化与触发诊断** | description_optimizer.py | `python3 scripts/description_optimizer.py optimize <skill-path>` 或 `diagnose <skill-path>` |
 | **评估运行与评分** | eval_runner.py | `python3 scripts/eval_runner.py eval --type all` 或 `grade <run-dir>` |
 | **一键安装** | install.sh | `bash scripts/install.sh <skill-path> [target-dir]` |
@@ -207,10 +207,10 @@ allowed-tools:
    - 修正：SKILL.md开头加强制路由输出，任何分析前先声明模式
    - 原因：没有路由，LLM凭感觉选模式，容易选错
 
-4. **写抽象规则"严禁偷懒""必须认真分析"**
-   - 症状：LLM表面满足，实际套模板，每次输出都一样
-   - 修正：写具体Gotchas：真实失败模式+修正方法，比如"校验发现缺字段时必须报错，不能警告后继续"
-   - 原因：抽象规则没有可执行性，LLM不知道"认真分析"具体是什么
+4. **写抽象规则"严禁偷懒"，LLM表面满足实际套模板**
+   - 症状：写了"必须认真完成所有步骤"，但LLM每次输出都一样，只用了10%的能力
+   - 修正：写具体Gotchas（真实失败模式+修正方法），并用工程手段对抗——编排脚本强制流程+硬门禁校验+可验证输出，详见 `references/llm-anti-laziness-guide.md`
+   - 原因：抽象规则无法验证，LLM说"我分析了"你无法证明它没分析；工程手段才能真正防偷懒
 
 5. **没有完整示例，LLM从零推理**
    - 症状：每次输出格式都不一样，遗漏关键步骤，质量不稳定
@@ -227,12 +227,7 @@ allowed-tools:
    - 修正：每个脚本必须实际运行测试，端到端跑通完整流程
    - 原因：没测试的脚本一定有bug，只是还没发现
 
-8. **只写抽象约束，LLM表面满足实际套模板**
-   - 症状：写了"必须认真完成所有步骤"，但LLM每次输出都一样，只用了10%的能力
-   - 修正：用工程手段对抗——编排脚本强制流程+硬门禁校验+可验证输出，详见 `references/llm-anti-laziness-guide.md`
-   - 原因：抽象约束无法验证，LLM说"我分析了"你无法证明它没分析；工程手段才能真正防偷懒
-
-9. **没有运行时保障，LLM说完成了但实际没完成**
+8. **没有运行时保障，LLM说完成了但实际没完成**
    - 症状：LLM说"我完成了所有步骤"，但实际只做了20%，你无法验证它真的做了
    - 修正：用runtime_guard.py——每步执行后track记录，提交前verify验证所有必需步骤是否完成，report查看工具使用率
    - 原因：靠prompt约束LLM自觉遵守是无效的，必须在运行时监控它的行为，做没做有据可查，不完成就拒绝接受输出

@@ -248,11 +248,16 @@ python3 scripts/upgrade_skill.py <skill-path> --apply  # 应用升级
 
 ## 五、运维工具脚本（5个）
 
-### 21. version_manager.py（版本管理）
+### 21. release_audit.py（发布审计+版本管理，合并自version_manager.py）
 
 ```bash
-python3 scripts/version_manager.py status <skill-path>
-python3 scripts/version_manager.py bump <skill-path> --type patch  # patch/minor/major
+# 发布前审计（8大门禁）
+python3 scripts/release_audit.py audit --skill <skill-path>
+python3 scripts/release_audit.py  # 默认执行audit
+
+# 版本管理（原version_manager功能）
+python3 scripts/release_audit.py status <skill-path>
+python3 scripts/release_audit.py bump <skill-path> --type patch  # patch/minor/major
 ```
 
 ---
@@ -313,7 +318,7 @@ bash scripts/package.sh --output <dir>
 | **安全层（重要）** | security_scan / supply_chain_scan / release_audit | 发布前用 |
 | **评估层（高级）** | run_eval / executor / grader / comparator / analyzer / eval_framework / aggregate_benchmark / eval_viewer / run_loop | 完整评估时用 |
 | **优化层（按需）** | description_optimizer / diagnose_trigger / upgrade_skill | 特定需求时用 |
-| **运维层（偶尔）** | version_manager / skill_observability / feedback_loop / install.sh / package.sh | 运维时用 |
+| **运维层（偶尔）** | release_audit(含版本管理) / skill_observability / feedback_loop / install.sh / package.sh | 运维时用 |
 
 ---
 
