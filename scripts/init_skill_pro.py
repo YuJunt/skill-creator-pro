@@ -14,6 +14,7 @@
 """
 import argparse
 import datetime
+import json
 import os
 import re
 import shutil
@@ -38,48 +39,318 @@ def _get_runtime_guard_template(skill_title):
     return content.replace("专业级技能创建器", skill_title)
 
 
-def _generate_capability_main_script(skill_title):
-    """生成Capability模式的核心工具脚本"""
+def _generate_capability_main_script(skill_title, skill_name=None):
+    """生成Capability模式的核心工具脚本（完整框架版）
+
+    包含：
+    - 通用工具函数（输入校验/错误处理/JSON输出/操作日志）
+    - 4个标准命令：preview（预览）/run（执行）/undo（撤销）/history（历史）
+    - 每个命令都有完整的参数解析和错误处理框架
+    - 清晰的TODO标记，用户只需填充业务逻辑
+    """
+    # 如果没有提供skill_name，用skill_title转换
+    if skill_name is None:
+        skill_name = skill_title.lower().replace(" ", "-")
     return f'''#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 {skill_title} 核心工具脚本
 
+设计哲学：Capability（工具包装型）——逻辑活在代码里，SKILL.md教agent怎么调用。
+
+命令列表：
+  preview  预览执行结果（dry-run，不实际修改）
+  run      实际执行
+  undo     撤销上一次操作
+  history  查看操作历史
+
 用法：
   python3 main.py --help
-  python3 main.py --input <输入文件> --output <输出文件>
+  python3 main.py preview --input <输入> [选项]
+  python3 main.py run --input <输入> [选项]
+  python3 main.py undo [--log-id <ID>]
+  python3 main.py history [--limit <N>]
 """
 import argparse
+import json
 import os
 import sys
+from datetime import datetime
 
 
-def cmd_process(args):
-    """处理核心功能"""
-    # TODO: 实现核心功能
-    print(json.dumps({{
-        "success": True,
+# ============================================================
+# 通用工具函数
+# ============================================================
+
+def validate_input_path(path):
+    """校验输入路径是否存在且可读"""
+    if not os.path.exists(path):
+        return False, f"输入路径不存在: {{path}}"
+    if not os.access(path, os.R_OK):
+        return False, f"输入路径不可读: {{path}}"
+    return True, ""
+
+
+def validate_output_dir(path):
+    """校验输出目录是否存在且可写"""
+    if not os.path.exists(path):
+        return False, f"输出目录不存在: {{path}}"
+    if not os.access(path, os.W_OK):
+        return False, f"输出目录不可写: {{path}}"
+    return True, ""
+
+
+def print_json_result(success, message, data=None, error=None):
+    """统一JSON输出格式"""
+    result = {{
+        "success": success,
+        "message": message,
+        "timestamp": datetime.now().isoformat(),
+    }}
+    if data is not None:
+        result["data"] = data
+    if error is not None:
+        result["error"] = error
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def handle_error(message, exit_code=1):
+    """统一错误处理"""
+    print_json_result(False, message, error=message)
+    sys.exit(exit_code)
+
+
+def get_log_path(input_path):
+    """获取操作日志文件路径"""
+    base_dir = os.path.dirname(os.path.abspath(input_path)) if os.path.isfile(input_path) else input_path
+    return os.path.join(base_dir, ".{skill_name}_log.json")
+
+
+def save_operation_log(log_path, operation, input_path, result_data):
+    """保存操作日志（用于撤销）"""
+    logs = []
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
+
+    log_entry = {{
+        "id": len(logs) + 1,
+        "operation": operation,
+        "input": input_path,
+        "timestamp": datetime.now().isoformat(),
+        "result": result_data,
+    }}
+    logs.append(log_entry)
+
+    try:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(logs, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️  警告：操作日志保存失败: {{e}}", file=sys.stderr)
+
+    return log_entry["id"]
+
+
+def load_operation_logs(log_path):
+    """加载操作日志"""
+    if not os.path.exists(log_path):
+        return []
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+# ============================================================
+# 命令实现（TODO: 填充具体业务逻辑）
+# ============================================================
+
+def cmd_preview(args):
+    """预览执行结果（dry-run，不实际修改）
+
+    TODO: 在此实现预览逻辑
+    - 读取输入
+    - 计算将要执行的操作
+    - 输出预览列表（不实际修改）
+    """
+    # 输入校验
+    valid, error = validate_input_path(args.input)
+    if not valid:
+        handle_error(error)
+
+    # TODO: 实现预览逻辑
+    preview_data = {{
         "input": args.input,
-        "output": args.output,
-        "message": "核心功能框架已就绪，请实现具体逻辑"
-    }}, ensure_ascii=False, indent=2))
+        "items": [
+            # {{"original": "原文件名", "new": "新文件名", "action": "重命名"}}
+        ],
+        "total": 0,
+        "message": "预览框架已就绪，请在cmd_preview中实现具体逻辑",
+    }}
 
+    print_json_result(True, "预览完成（dry-run，未实际修改）", data=preview_data)
+
+
+def cmd_run(args):
+    """实际执行
+
+    TODO: 在此实现执行逻辑
+    - 读取输入
+    - 执行操作
+    - 保存操作日志（用于撤销）
+    - 输出执行结果
+    """
+    # 输入校验
+    valid, error = validate_input_path(args.input)
+    if not valid:
+        handle_error(error)
+
+    # TODO: 实现执行逻辑
+    result_data = {{
+        "input": args.input,
+        "success_count": 0,
+        "fail_count": 0,
+        "skip_count": 0,
+        "message": "执行框架已就绪，请在cmd_run中实现具体逻辑",
+    }}
+
+    # 保存操作日志（支持撤销）
+    log_path = get_log_path(args.input)
+    log_id = save_operation_log(log_path, "run", args.input, result_data)
+    result_data["log_id"] = log_id
+
+    print_json_result(True, "执行完成", data=result_data)
+
+
+def cmd_undo(args):
+    """撤销上一次操作
+
+    TODO: 在此实现撤销逻辑
+    - 读取操作日志
+    - 根据日志恢复原状态
+    - 输出撤销结果
+    """
+    # 确定日志路径
+    if args.input:
+        log_path = get_log_path(args.input)
+    else:
+        log_path = ".{skill_name}_log.json"
+
+    logs = load_operation_logs(log_path)
+    if not logs:
+        handle_error("没有可撤销的操作（未找到操作日志）")
+
+    # 确定要撤销的操作
+    if args.log_id:
+        target_log = next((l for l in logs if l["id"] == args.log_id), None)
+        if not target_log:
+            handle_error(f"指定的日志ID不存在: {{args.log_id}}")
+    else:
+        target_log = logs[-1]  # 默认撤销最近一次
+
+    # TODO: 实现撤销逻辑
+    undo_data = {{
+        "log_id": target_log["id"],
+        "operation": target_log["operation"],
+        "input": target_log["input"],
+        "restored_count": 0,
+        "fail_count": 0,
+        "message": "撤销框架已就绪，请在cmd_undo中实现具体逻辑",
+    }}
+
+    print_json_result(True, f"已撤销操作 #{{target_log['id']}}", data=undo_data)
+
+
+def cmd_history(args):
+    """查看操作历史"""
+    # 确定日志路径
+    if args.input:
+        log_path = get_log_path(args.input)
+    else:
+        log_path = ".{skill_name}_log.json"
+
+    logs = load_operation_logs(log_path)
+    if not logs:
+        print_json_result(True, "暂无操作历史", data={{"logs": []}})
+        return
+
+    # 按limit限制
+    limit = args.limit or 10
+    recent_logs = logs[-limit:] if len(logs) > limit else logs
+
+    history_data = {{
+        "total": len(logs),
+        "shown": len(recent_logs),
+        "logs": [
+            {{
+                "id": l["id"],
+                "operation": l["operation"],
+                "input": l["input"],
+                "timestamp": l["timestamp"],
+            }}
+            for l in reversed(recent_logs)
+        ],
+    }}
+
+    print_json_result(True, f"共{{len(logs)}}条操作历史，显示最近{{len(recent_logs)}}条", data=history_data)
+
+
+# ============================================================
+# 主函数
+# ============================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="{skill_title} 核心工具")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(
+        description="{skill_title} 核心工具",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python3 main.py preview --input /path/to/files
+  python3 main.py run --input /path/to/files --option value
+  python3 main.py undo --log-id 3
+  python3 main.py history --limit 20
+        """,
+    )
+    sub = parser.add_subparsers(dest="command", required=True, help="可用命令")
 
-    p_process = sub.add_parser("process", help="处理核心功能")
-    p_process.add_argument("--input", required=True, help="输入文件")
-    p_process.add_argument("--output", required=True, help="输出文件")
-    p_process.set_defaults(func=cmd_process)
+    # preview 命令
+    p_preview = sub.add_parser("preview", help="预览执行结果（dry-run，不实际修改）")
+    p_preview.add_argument("--input", required=True, help="输入文件或目录")
+    p_preview.add_argument("--option", default=None, help="选项（根据具体功能定义）")
+    p_preview.set_defaults(func=cmd_preview)
+
+    # run 命令
+    p_run = sub.add_parser("run", help="实际执行")
+    p_run.add_argument("--input", required=True, help="输入文件或目录")
+    p_run.add_argument("--option", default=None, help="选项（根据具体功能定义）")
+    p_run.add_argument("--force", action="store_true", help="强制执行（跳过确认）")
+    p_run.set_defaults(func=cmd_run)
+
+    # undo 命令
+    p_undo = sub.add_parser("undo", help="撤销上一次操作")
+    p_undo.add_argument("--input", default=None, help="输入路径（用于定位日志文件）")
+    p_undo.add_argument("--log-id", type=int, default=None, help="指定要撤销的日志ID（默认撤销最近一次）")
+    p_undo.set_defaults(func=cmd_undo)
+
+    # history 命令
+    p_history = sub.add_parser("history", help="查看操作历史")
+    p_history.add_argument("--input", default=None, help="输入路径（用于定位日志文件）")
+    p_history.add_argument("--limit", type=int, default=10, help="显示最近N条记录（默认10）")
+    p_history.set_defaults(func=cmd_history)
 
     args = parser.parse_args()
-    args.func(args)
+
+    try:
+        args.func(args)
+    except Exception as e:
+        handle_error(f"执行失败: {{str(e)}}", exit_code=2)
 
 
 if __name__ == "__main__":
-    import json
     main()
 '''
 
@@ -198,11 +469,20 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
 
     # 根据设计哲学生成不同的文件
     if philosophy == "capability":
-        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障
-        files["scripts/main.py"] = _generate_capability_main_script(skill_title)
+        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障 + 安全白名单
+        files["scripts/main.py"] = _generate_capability_main_script(skill_title, skill_name)
         files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
+        # 默认安全白名单（操作日志和使用记录需要写入文件，这是正常功能）
+        files[".security-whitelist.json"] = json.dumps({
+            "allowed_files": [],
+            "allowed_patterns": [
+                "文件写入：技能会写入文件",
+                "with open(",
+            ],
+            "exclude_dirs": ["__pycache__/", ".pytest_cache/", ".git/"]
+        }, ensure_ascii=False, indent=2)
 
     elif philosophy == "process":
         # Process模式：references方法论文档 + 检查清单 + 编排脚本 + 校验脚本 + 工作流示例 + 评估用例 + 运行时保障
@@ -216,7 +496,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
 
     else:
         # Mixed模式：完整专业技能（4个脚本 + 2个references + 1个示例）
-        files["scripts/main.py"] = _generate_capability_main_script(skill_title)
+        files["scripts/main.py"] = _generate_capability_main_script(skill_title, skill_name)
         files["scripts/orchestrator.py"] = ORCHESTRATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/validator.py"] = VALIDATOR_TEMPLATE.replace("{skill_title}", skill_title)
         files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
