@@ -188,7 +188,7 @@ class SecurityScanner:
     SCAN_EXTENSIONS = {'.py', '.md', '.sh', '.bash', '.zsh', '.js', '.ts', '.json', '.yaml', '.yml', '.txt'}
 
     # 跳过的目录
-    SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.venv', 'venv', 'dist', 'build', 'tests'}
+    SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.venv', 'venv', 'dist', 'build', 'tests', 'htmlcov', '.pytest_cache', 'backup', 'assets', 'examples'}
 
     # 文件写入白名单：这些脚本/目录的文件写入是正常功能（创建工具/示例/审计），跳过other风险检测
     FILE_WRITE_WHITELIST = {

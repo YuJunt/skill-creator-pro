@@ -1,0 +1,40 @@
+# .coveragerc - pytest-cov 配置文件
+# 用于skill-creator-pro的代码覆盖率统计
+
+[run]
+# 统计的源代码目录
+source = scripts
+
+# 排除的文件（不需要统计覆盖率）
+omit =
+    # 测试脚本本身
+    scripts/test_*.py
+    # 模板文件（大字符串，不需要统计）
+    scripts/templates.py
+    # 综合测试运行脚本
+    scripts/run_all_tests.sh
+    # 打包脚本
+    scripts/package.sh
+    # 安装脚本
+    scripts/install.sh
+
+# 分支覆盖率
+branch = True
+
+[report]
+# 显示缺失的行
+show_missing = True
+
+# 跳过覆盖的文件（没有可执行代码）
+skip_covered = False
+
+# 覆盖率精度
+precision = 1
+
+[html]
+# HTML报告目录
+directory = htmlcov
+
+[xml]
+# XML报告文件
+output = coverage.xml
