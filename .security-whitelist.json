@@ -1,0 +1,10 @@
+{
+  "allowed_files": [
+    "scripts/version_manager.py",
+    "scripts/skill_observability.py",
+    "scripts/diagnose_trigger.py"
+  ],
+  "allowed_patterns": [
+    "文件写入：技能会写入文件"
+  ]
+}
