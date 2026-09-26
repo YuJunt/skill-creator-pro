@@ -42,6 +42,15 @@ Thumbs.db
 .coverage
 htmlcov/
 .tox/
+test-report.md
+l4-scenario-results.json
+l7-benchmark-results.json
+.audit_log.jsonl
+
+# 审计报告（运行时生成，不入库）
+release-audit.json
+benchmark.json
+benchmark.md
 
 # 打包产物（保留scripts/package.sh，但排除生成的zip）
 *.zip
@@ -55,4 +64,3 @@ htmlcov/
 # 环境变量
 .env
 .env.local
-release-audit.json

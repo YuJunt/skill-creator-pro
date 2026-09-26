@@ -429,10 +429,8 @@ def check_routing_completeness(skill_path):
 
     if mode_count < 2:
         issues.append(f"❌ 路由模式不足（检测到{mode_count}种模式），至少需要2种路由模式")
-    elif mode_count < 4:
-        warnings.append(f"⚠️ 路由模式较少（检测到{mode_count}种模式），建议支持2-4种模式")
     else:
-        print(f"  ✅ 路由模式丰富（检测到{mode_count}种模式）")
+        print(f"  ✅ 路由模式合理（检测到{mode_count}种模式，建议2-4种）")
 
     # 检查3：是否有must_read机制
     has_must_read = "must_read" in content or "必读文档" in content or "按需加载" in content

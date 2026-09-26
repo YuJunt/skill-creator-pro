@@ -465,24 +465,24 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
     # 基础文件（所有模式都有）
     files = {
         "SKILL.md": skill_md_content,
-    }
-
-    # 根据设计哲学生成不同的文件
-    if philosophy == "capability":
-        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障 + 安全白名单
-        files["scripts/main.py"] = _generate_capability_main_script(skill_title, skill_name)
-        files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
-        files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
-        files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
         # 默认安全白名单（操作日志和使用记录需要写入文件，这是正常功能）
-        files[".security-whitelist.json"] = json.dumps({
+        ".security-whitelist.json": json.dumps({
             "allowed_files": [],
             "allowed_patterns": [
                 "文件写入：技能会写入文件",
                 "with open(",
             ],
             "exclude_dirs": ["__pycache__/", ".pytest_cache/", ".git/"]
-        }, ensure_ascii=False, indent=2)
+        }, ensure_ascii=False, indent=2),
+    }
+
+    # 根据设计哲学生成不同的文件
+    if philosophy == "capability":
+        # Capability模式：1个核心工具脚本 + 1个示例 + 评估用例 + 运行时保障
+        files["scripts/main.py"] = _generate_capability_main_script(skill_title, skill_name)
+        files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
+        files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
+        files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
 
     elif philosophy == "process":
         # Process模式：references方法论文档 + 检查清单 + 编排脚本 + 校验脚本 + 工作流示例 + 评估用例 + 运行时保障
