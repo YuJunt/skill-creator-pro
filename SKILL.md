@@ -266,6 +266,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 避免常见坑，需要30个真实案例 | `references/gotchas-collection.md` |
 | 安全审计，需要检查清单 | `references/security-audit-checklist.md` |
 | 端到端测试，需要完整手册 | `references/e2e-testing-playbook.md` |
+| **自动评分（Grader Agent）** | `scripts/grader.py <run_dir>` |
+| **盲A/B比较（Comparator Agent）** | `scripts/comparator.py <run_a> <run_b>` |
+| **基准分析（Analyzer Agent）** | `scripts/analyzer.py <benchmark_dir>` |
 | 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
 | 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
 | 自进化闭环+经验库（执行→评估→复盘→经验提取→下批参考） | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
