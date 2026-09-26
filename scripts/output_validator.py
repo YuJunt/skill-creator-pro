@@ -21,6 +21,7 @@ output_validator.py - skill-creator-pro 输出校验脚本
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -347,6 +348,134 @@ def check_domain_specific_residue(skill_path, skill_type="auto"):
     return issues, warnings
 
 
+def check_routing_completeness(skill_path):
+    """
+    校验6：触发路由完整性（检查SKILL.md是否有路由表、路由模式、must_read机制）。
+    路由是渐进式披露的开关，没有路由的技能无法正确触发。
+    """
+    issues = []
+    warnings = []
+
+    skill_md = os.path.join(skill_path, "SKILL.md")
+    if not os.path.isfile(skill_md):
+        issues.append("❌ SKILL.md不存在，无法检查路由完整性")
+        return issues, warnings
+
+    with open(skill_md, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 检查1：是否有路由表章节
+    has_routing_section = any(kw in content for kw in ["路由", "routing", "触发模式", "模式选择"])
+    if not has_routing_section:
+        issues.append("❌ SKILL.md缺少路由表章节（触发路由是渐进式披露的核心开关）")
+    else:
+        print("  ✅ 有路由表章节")
+
+    # 检查2：是否有多种模式（至少2种）
+    mode_keywords = ["新建", "创建", "优化", "评审", "审计", "测试", "create", "optimize", "review", "test"]
+    mode_count = sum(1 for kw in mode_keywords if kw in content)
+    if mode_count < 4:
+        warnings.append(f"⚠️ 路由模式较少（检测到{mode_count}个关键词），建议至少支持2-4种模式")
+    else:
+        print(f"  ✅ 路由模式丰富（检测到{mode_count}个关键词）")
+
+    # 检查3：是否有must_read机制
+    has_must_read = "must_read" in content or "必读文档" in content or "按需加载" in content
+    if not has_must_read:
+        warnings.append("⚠️ 缺少must_read机制（路由确定后应该明确必读文档）")
+    else:
+        print("  ✅ 有must_read机制")
+
+    # 检查4：是否有模糊请求处理
+    has_ambiguous = "模糊" in content or "ambiguous" in content or "询问用户" in content
+    if not has_ambiguous:
+        warnings.append("⚠️ 缺少模糊请求处理（用户请求不明确时应该询问澄清）")
+    else:
+        print("  ✅ 有模糊请求处理")
+
+    return issues, warnings
+
+
+def check_progressive_disclosure_completeness(skill_path):
+    """
+    校验7：渐进式披露完整性（检查是否有L1/L2/L3分层，避免一次性加载所有内容）。
+    渐进式披露是专业技能的核心特征，避免上下文浪费。
+    """
+    issues = []
+    warnings = []
+
+    skill_md = os.path.join(skill_path, "SKILL.md")
+    if not os.path.isfile(skill_md):
+        issues.append("❌ SKILL.md不存在，无法检查渐进式披露完整性")
+        return issues, warnings
+
+    with open(skill_md, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 检查1：是否有渐进式披露章节
+    has_pd_section = any(kw in content for kw in ["渐进式披露", "progressive disclosure", "按需加载", "分层"])
+    if not has_pd_section:
+        issues.append("❌ SKILL.md缺少渐进式披露章节（专业技能应该分层加载，避免上下文浪费）")
+    else:
+        print("  ✅ 有渐进式披露章节")
+
+    # 检查2：是否有L1/L2/L3分层（至少2层）
+    layer_keywords = ["L1", "L2", "L3", "第一层", "第二层", "第三层", "核心层", "扩展层", "完整层"]
+    layer_count = sum(1 for kw in layer_keywords if kw in content)
+    if layer_count < 2:
+        warnings.append(f"⚠️ 渐进式披露分层不明显（检测到{layer_count}个层级关键词），建议明确L1/L2/L3")
+    else:
+        print(f"  ✅ 渐进式披露分层清晰（检测到{layer_count}个层级关键词）")
+
+    # 检查3：SKILL.md行数是否合理（<500行，避免L1过重）
+    line_count = content.count("\n") + 1
+    if line_count > 500:
+        issues.append(f"❌ SKILL.md {line_count}行，超过500行上限（L1应该精简，详细内容放L2/L3）")
+    elif line_count > 400:
+        warnings.append(f"⚠️ SKILL.md {line_count}行，接近500行上限，建议精简")
+    else:
+        print(f"  ✅ SKILL.md {line_count}行（健康，<400行）")
+
+    # 检查4：是否有references目录（L2的载体）
+    references_dir = os.path.join(skill_path, "references")
+    if os.path.isdir(references_dir):
+        ref_count = len([f for f in os.listdir(references_dir) if f.endswith(".md")])
+        if ref_count == 0:
+            warnings.append("⚠️ references目录存在但没有文档（L2层为空）")
+        else:
+            print(f"  ✅ references目录有{ref_count}个文档（L2层完整）")
+    else:
+        warnings.append("⚠️ 没有references目录（L2层缺失，详细文档应该放这里）")
+
+    return issues, warnings
+
+
+def write_audit_log(skill_path, mode, issues, warnings, passed):
+    """
+    写审计日志（记录输入→输出→验证结果，用于追溯和持续优化）。
+    日志保存在技能目录下的 .audit_log.jsonl，每行一条JSON记录。
+    """
+    import datetime
+    log_entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "skill_path": skill_path,
+        "mode": mode,
+        "issues_count": len(issues),
+        "warnings_count": len(warnings),
+        "passed": passed,
+        "issues": issues,
+        "warnings": warnings,
+    }
+
+    log_path = os.path.join(skill_path, ".audit_log.jsonl")
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        print(f"\n📝 审计日志已写入: {log_path}")
+    except Exception as e:
+        print(f"\n⚠️  审计日志写入失败: {e}（不影响校验结果）")
+
+
 def validate_output(skill_path, mode="optimize", skill_type="auto"):
     """主校验函数"""
     # 自动检测技能类型（用于显示）
@@ -394,9 +523,21 @@ def validate_output(skill_path, mode="optimize", skill_type="auto"):
     all_issues.extend(issues)
     all_warnings.extend(warnings)
 
+    # 校验6：触发路由完整性
+    print(f"\n--- 校验6: 触发路由完整性 ---")
+    issues, warnings = check_routing_completeness(skill_path)
+    all_issues.extend(issues)
+    all_warnings.extend(warnings)
+
+    # 校验7：渐进式披露完整性
+    print(f"\n--- 校验7: 渐进式披露完整性 ---")
+    issues, warnings = check_progressive_disclosure_completeness(skill_path)
+    all_issues.extend(issues)
+    all_warnings.extend(warnings)
+
     # 汇总
     print(f"\n{'='*60}")
-    print(f"📊 校验结果汇总")
+    print(f"📊 校验结果汇总（7项检查）")
     print(f"{'='*60}")
     print(f"  ❌ 问题（必须修复）: {len(all_issues)}")
     print(f"  ⚠️  警告（建议修复）: {len(all_warnings)}")
@@ -411,7 +552,12 @@ def validate_output(skill_path, mode="optimize", skill_type="auto"):
         for i, warning in enumerate(all_warnings, 1):
             print(f"  {i}. {warning}")
 
-    if all_issues:
+    passed = len(all_issues) == 0
+
+    # 写审计日志
+    write_audit_log(skill_path, mode, all_issues, all_warnings, passed)
+
+    if not passed:
         print(f"\n❌ 校验未通过，必须修复 {len(all_issues)} 个问题后才能继续")
         return False
     else:

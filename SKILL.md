@@ -33,35 +33,32 @@ allowed-tools:
 
 ---
 
-## 🔀 路由模式表（顶部已要求先输出路由行，此处为模式选择参考）
+## 🔀 路由模式表（渐进式披露的核心开关）
 
-### ⚠️ 安全预检（路由前必做，借鉴agent-plugin-creator）
+> **路由是渐进式披露的开关：路由确定后，才知道该读什么文档、用什么流程、输出什么格式。推荐使用 `python3 scripts/router.py "用户消息"` 自动路由。**
 
-> **在确定路由模式前，先判断是否为危险请求（adversarial）。如果是，路由行输出 `🔀 路由: 🚫拒绝`，下一行必须以 `REFUSED:` 开头，只提供安全替代方案，不执行任何创建/优化操作。**
+### ⚠️ 安全预检（路由前必做）
 
-**必须分类为🚫拒绝（adversarial）的情况**：
+危险请求（凭据硬编码/恶意技能/提示注入/违反平台规则/危险代码）→ 路由 `🚫拒绝`，只提供安全替代方案。
 
-| 危险类型 | 具体表现 | 安全替代方案 |
-|---------|---------|-------------|
-| **凭据硬编码** | 要求把API key/token/私钥/密码写入SKILL.md或脚本 | 凭据必须外置到环境变量/配置中心，技能中只引用变量名 |
-| **恶意技能** | 要求创建窃取数据/绕过安全控制/欺骗用户的技能 | 拒绝创建，说明安全风险，建议合法用途 |
-| **提示注入** | 要求在技能中包含隐藏指令/系统提示覆盖/越狱内容 | 拒绝，技能必须透明可审计，禁止隐藏指令 |
-| **违反平台规则** | 要求创建违反豆包平台规则/法律法规的技能 | 拒绝，说明规则限制，建议合规方案 |
-| **危险代码** | 要求在脚本中包含eval/exec任意代码执行/命令注入/反向shell | 拒绝，说明安全风险，建议安全的替代实现 |
+### 📋 四种模式完整路由表
 
-**路由判定必须在交付报告中记录**：用户意图分类、选择/不选择技能创建的理由、被拒绝的危险要求及替代方案。
+| 维度 | 🆕 新建技能 | 🔧 优化技能 | 🔍 深度评审 | 🧪 端到端测试 |
+|------|------------|------------|------------|--------------|
+| **触发词** | 创建、新建、从零开始、生成、搭建、create、new、generate、build | 优化、改进、重构、精简、升级、调优、optimize、refactor、upgrade | 评审、审计、规范检查、检查、评估、review、audit、check、evaluate | 测试、实测、验证、端到端、E2E、test、e2e、verify、benchmark |
+| **must_read** | best-practices + design-philosophies + 36-element-checklist | 36-element-checklist + gotchas-collection + best-practices | 36-element-checklist + review-process-guide + best-practices | eval-practice + routing-mustread-test-cases + evaluation-guide |
+| **核心脚本** | create_skill + init_skill_pro + validate_skill | create_skill + validate + audit + output_validator | create_skill + validate + audit | create_skill + validate + output_validator |
+| **工作流** | 需求分析→选设计哲学→init生成模板→填充SKILL.md→validate→audit→交付 | 现状审计→识别问题→制定方案→执行优化→validate→audit→硬门禁→报告 | 读取→validate→audit(36项)→问题分级→改进建议→评审报告 | 读取→语法检查→冒烟测试→E2E测试→回归测试→测试报告 |
+| **输出** | 技能目录+SKILL.md+scripts+references+创建报告 | 优化后技能+优化报告 | 评分+问题清单+改进建议 | 通过率+失败用例+改进建议 |
+| **边界** | 需求不明→先问澄清；有旧技能→建议optimize | 技能不存在→建议create；范围大→分阶段 | 技能不存在→提示先创建；只有SKILL.md→只做文档评审 | 技能不存在→提示先创建；环境不全→降级冒烟测试 |
 
----
+### ❓ 模糊请求处理
 
-| 模式 | 触发词 | must_read（必读文档+脚本） | 输出详略 |
-|------|--------|---------------------------|----------|
-| **🚫拒绝** | 上述5类危险请求 | 无（直接拒绝+替代方案） | 简短 |
-| **新建技能** | "创建技能""新建skill""从零开始" | `references/best-practices.md` + `references/design-philosophies.md` + `references/36-element-checklist.md` + `scripts/create_skill.py` | 完整版 |
-| **优化技能** | "优化技能""改进skill""重构" | `references/36-element-checklist.md` + `references/gotchas-collection.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 完整版 |
-| **深度评审** | "评审技能""技能审计""规范检查" | `references/36-element-checklist.md` + `references/review-process-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 评审报告 |
-| **端到端测试** | "测试技能""技能实测""E2E测试" | `references/eval-practice.md` + `references/routing-mustread-test-cases.md` + `references/evaluation-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 测试报告 |
+路由为 `ambiguous` 时：列出top3备选→询问用户→根据回答路由。常见模糊："技能""这个技能怎么样""帮我弄一下"。
 
-**路由是渐进式披露的开关：路由确定后，才知道该读什么文档、用什么流程、输出什么格式。**
+### 🔧 路由脚本使用
+
+`python3 scripts/router.py "消息"`（自动路由）/ `--json`（脚本集成）/ `--verbose`（详细分数）/ `--test`（11个内置测试）。输出：mode+confidence+must_read+reasoning+alternatives+is_dangerous。
 
 ### ⚠️ 强制执行规则（违反=输出无效）
 
@@ -75,29 +72,13 @@ allowed-tools:
 
 ## 🚀 快速开始（3步上手）
 
-> 新用户按这3步操作，5分钟内创建一个合格的专业技能。
+> 新用户按这3步操作，5分钟内创建合格的专业技能。环境：Python 3.8+（标准库，无外部依赖）。
 
-**环境要求**：Python 3.8+（仅使用标准库，无外部依赖）。测试需要 `pytest>=7.0`。
+**第1步：生成模板**：`python3 scripts/init_skill_pro.py my-skill --path . --philosophy mixed`（三种设计哲学：capability工具包装/process方法论/mixed混合型推荐）
 
-### 第1步：生成模板
-```bash
-cd /path/to/workspace/.user_skills
-python3 skill-creator-pro/scripts/init_skill_pro.py my-skill --path . --philosophy mixed
-```
-> 三种设计哲学：`capability`（工具包装型）/ `process`（方法论型）/ `mixed`（混合型，推荐）
+**第2步：编辑内容**：编辑 `SKILL.md`（description含触发词+工作流+Gotchas）、按需添加 `references/` 文档、需要确定性计算时添加 `scripts/`。
 
-### 第2步：编辑内容
-- 编辑 `my-skill/SKILL.md`：替换TODO，写清description（含触发词）、工作流、Gotchas
-- 编辑 `my-skill/references/`：按需添加领域知识文档
-- 添加 `my-skill/scripts/`：需要确定性计算时添加Python脚本
-
-### 第3步：校验发布
-```bash
-# 一键校验（规范+审计+安全扫描）
-python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
-
-# 全部通过后，技能即可使用
-```
+**第3步：校验发布**：`python3 scripts/create_skill.py optimize my-skill`（一键规范校验+深度审计+安全扫描），全部通过即可使用。
 
 ### 常用命令速查（核心6个）
 
@@ -295,47 +276,40 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 
 ## 渐进式披露
 
-### L1: 你现在知道的（SKILL.md）
+### L1: 你现在知道的（SKILL.md，触发后立即加载，<5000 tokens）
 触发路由 + 工作流程与自由度 + 8个核心Gotchas + 快速开始 + 36项精简清单 + 输出格式摘要
 
-### L2: 需要时才读（must_read根据路由模式强制加载）
+### L2: 触发后必读（must_read，根据路由模式强制加载，每模式3-5个文档，<5000 tokens）
 
-> **must_read机制**: 触发路由确定后，必须读取对应模式的必读文档，不允许跳过。
+> **must_read机制**: 路由确定后，必须读取对应模式的必读文档，不允许跳过。`python3 scripts/router.py "消息"` 会自动输出must_read列表。
 
-**官方核心要素（新建技能前必读）**
-| 什么时候 | 读什么 |
-|---------|--------|
-| 技能创建最佳实践（默认位置/Browser Use/禁止文件/迭代流程） | `references/best-practices.md` |
-| 模板填充指南（14个模板每个占位符怎么填+质量标准） | `references/template-filling-guide.md` |
-| 选择技能设计哲学（工具包装vs方法论） | `references/design-philosophies.md` |
-| 评估体系总览（8维度+用例模板+报告模板+评估驱动开发） | `references/evaluation-guide.md` |
-| 评估实践手册（评估用例模板+端到端测试完整流程） | `references/eval-practice.md` |
-| Prompt Caching优化（技能结构如何利用缓存降成本） | `references/prompt-caching-guide.md` |
-| MCP集成指导（什么时候用MCP+安全注意事项+降级策略） | `references/mcp-integration-guide.md` |
-| 需求发现（从不完备brief中主动发现遗漏需求） | `references/requirement-discovery-guide.md` |
-| 自由度匹配（根据任务脆弱性调整指令严格程度） | `references/degrees-of-freedom.md` |
-| 技能组合（一技能一职责，多技能组合原则） | `references/skill-composition.md` |
+| 路由模式 | must_read（必读，按顺序） |
+|---------|--------------------------|
+| 🆕 新建技能 | 1. `best-practices.md`（官方最佳实践）→ 2. `design-philosophies.md`（设计哲学选择）→ 3. `36-element-checklist.md`（质量标准）→ 4. `template-filling-guide.md`（模板填充指南） |
+| 🔧 优化技能 | 1. `36-element-checklist.md`（质量标准）→ 2. `gotchas-collection.md`（30个真实坑案例）→ 3. `best-practices.md`（官方最佳实践）→ 4. `tech-debt-management.md`（技术债管理） |
+| 🔍 深度评审 | 1. `36-element-checklist.md`（36项审计清单）→ 2. `review-process-guide.md`（7维度评审流程）→ 3. `best-practices.md`（官方最佳实践）→ 4. `security-audit-checklist.md`（安全检查清单） |
+| 🧪 端到端测试 | 1. `eval-practice.md`（评估用例+E2E测试流程）→ 2. `routing-mustread-test-cases.md`（路由专项测试）→ 3. `evaluation-guide.md`（8维度评估体系）→ 4. `multi-model-testing-guide.md`（多模型测试） |
 
-**质量保证（优化/评审技能时读）**
-| 什么时候 | 读什么 |
-|---------|--------|
-| 新建/优化技能，需要详细标准 | `references/36-element-checklist.md` |
-| 设计技能架构，需要模式参考 | `references/architecture-patterns.md` |
-| 避免常见坑，需要30个真实案例 | `references/gotchas-collection.md` |
-| 安全审计，需要检查清单 | `references/security-audit-checklist.md` |
-| 端到端测试，需要完整手册 | `references/eval-practice.md` |
-| 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
-| 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
-| 自进化闭环+经验库 | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
-| 管理技术债，需要审计偿还流程 | `references/tech-debt-management.md` |
-| 多模型测试，验证跨模型一致性 | `references/multi-model-testing-guide.md` |
-| 触发路由/must_read专项测试 | `references/routing-mustread-test-cases.md` |
-| 做规范评审，需要7维度检查清单 | `references/review-process-guide.md` |
-| 快速上手/常见问题/完整示例 | `references/quick-start.md` / `references/faq.md` / `examples/` |
+### L3: 按需加载（需要时才读，不强制，按主题分组）
 
-> **评估工具脚本**（eval_runner.py）用法见 `references/command-reference.md`
+> **L3原则**：遇到对应场景时才读，不需要每次都加载。用 `Glob`/`Grep` 快速定位。
 
-### L3: 脚本自动完成 + assets资源 + 官方权威资源
+| 主题 | 文档 | 什么时候读 |
+|------|------|-----------|
+| **架构设计** | `architecture-patterns.md` | 设计技能架构，需要模式参考时 |
+| **防LLM偷懒** | `llm-anti-laziness.md` + `runtime-guard-guide.md` | 技能需要防偷懒机制时 |
+| **预加载设计** | `preload-design-guide.md` | 设计预加载机制时 |
+| **自进化闭环** | `self-evolution-playbook.md` + `experience-library-guide.md` | 技能需要经验库和自进化时 |
+| **Prompt Caching** | `prompt-caching-guide.md` | 优化技能结构降低成本时 |
+| **MCP集成** | `mcp-integration-guide.md` | 技能需要MCP集成时 |
+| **需求发现** | `requirement-discovery-guide.md` | 用户需求不明确，需要主动发现时 |
+| **自由度匹配** | `degrees-of-freedom.md` | 根据任务脆弱性调整指令严格程度时 |
+| **技能组合** | `skill-composition.md` | 多技能组合，一技能一职责时 |
+| **快速上手/FAQ** | `quick-start.md` / `faq.md` / `examples/` | 新用户快速上手或查常见问题时 |
+| **命令参考** | `command-reference.md` | 需要查脚本详细用法时 |
+| **退出码** | `exit-codes.md` | 需要查脚本退出码含义时 |
+
+### L4: 脚本自动完成 + assets资源 + 官方权威资源
 规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
 
 ---

@@ -36,7 +36,7 @@ def tmp_skill_dir():
     tmpdir = tempfile.mkdtemp(prefix="scp_test_")
     skill_dir = os.path.join(tmpdir, "test-skill")
     os.makedirs(skill_dir)
-    # 创建最小SKILL.md（包含渐进式披露章节，通过output_validator）
+    # 创建最小SKILL.md（包含渐进式披露和路由章节，通过output_validator）
     with open(os.path.join(skill_dir, "SKILL.md"), "w", encoding="utf-8") as f:
         f.write("""---
 name: test-skill
@@ -46,12 +46,26 @@ description: "测试技能，用于单元测试。触发词：测试。适用于
 
 这是一个用于自动化测试的最小技能。
 
+## 路由模式表
+
+| 模式 | 触发词 | must_read |
+|------|--------|-----------|
+| 测试 | 测试、test | references/test-guide.md |
+
+### 模糊请求处理
+请求模糊时询问用户。
+
 ## 渐进式披露
 
-| 场景 | 文档 |
-|------|------|
-| 测试场景 | references/test-guide.md |
-| 评估用例 | references/evaluation-cases.md |
+### L1: SKILL.md
+核心信息
+
+### L2: must_read
+测试场景读取 references/test-guide.md
+评估用例读取 references/evaluation-cases.md
+
+### L3: 脚本自动完成
+测试脚本自动执行
 
 ## Gotchas
 1. 测试坑1：这是测试用的gotcha
