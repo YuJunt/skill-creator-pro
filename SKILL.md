@@ -4,6 +4,13 @@ description: >
   专业级技能创建与优化工具。当用户需要创建/优化/评审/测试Agent Skill时使用。
   触发词："技能创建"、"skill"、"优化技能"、"技能审计"、"技能测试"、"技能规范"。
   不适用于：简单prompt编写、非Skill格式的提示词优化。
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
 ---
 
 # 专业级技能创建器（Skill Creator Pro）
@@ -69,6 +76,8 @@ description: >
 ## 🚀 快速开始（3步上手）
 
 > 新用户按这3步操作，5分钟内创建一个合格的专业技能。
+
+**环境要求**：Python 3.8+（仅使用标准库，无外部依赖）。测试需要 `pytest>=7.0`。
 
 ### 第1步：生成模板
 ```bash
@@ -283,10 +292,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 ## 版本
 
 - v2.1.0（知行合一般）
-- 核心：修复14项"知行不一"问题，skill-creator-pro自身遵循它教的所有最佳实践
-- 新增：设计哲学声明/自由度标注/验证循环/状态检查/预加载说明/must_read机制/技能组合说明
-- 泛化：Gotchas全部泛化（去掉特定领域案例）
-- 更新：description/36项清单/评审报告格式全部更新为三层分类
-- 补充：优化技能交付格式/端到端测试报告格式
-- 基于：Anthropic官方最佳实践 + effective-agent-skills业界指南 + 多领域实战经验
-- 2026-09-22
+- 核心：修复14项"知行不一"问题，自身遵循所有最佳实践
+- 新增：设计哲学/自由度标注/验证循环/must_read机制/技能组合
+- 基于：Anthropic官方最佳实践 + 业界指南 + 多领域实战经验
+- 2026-09-26
