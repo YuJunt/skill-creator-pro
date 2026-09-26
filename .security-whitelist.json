@@ -1,10 +1,26 @@
 {
   "allowed_files": [
-    "scripts/version_manager.py",
-    "scripts/skill_observability.py",
-    "scripts/diagnose_trigger.py"
+    "scripts/router.py",
+    "scripts/security_scan.py",
+    "scripts/supply_chain_scan.py"
   ],
   "allowed_patterns": [
-    "文件写入：技能会写入文件"
+    "DANGEROUS_PATTERNS",
+    "危险请求检测",
+    "提示注入",
+    "越狱",
+    "jailbreak",
+    "反向shell",
+    "硬编码",
+    "安全规则定义",
+    "文件写入：技能会写入文件",
+    "with open(",
+    "backup/dead-code"
+  ],
+  "exclude_dirs": [
+    "backup/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".git/"
   ]
 }

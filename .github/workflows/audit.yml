@@ -1,0 +1,93 @@
+# =============================================================================
+# skill-creator-pro CI/CD - 审计工作流
+# 定期运行深度审计、安全扫描、规范校验
+# =============================================================================
+
+name: Audit
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # 每周日午夜运行
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run规范校验
+        id: validate
+        run: |
+          python scripts/validate_skill.py . --json > validate-result.json
+          cat validate-result.json | python -c "
+import sys,json
+d=json.load(sys.stdin)
+s=d.get('summary',{})
+print(f'高优先级: {s.get(\"high\",0)}')
+print(f'中优先级: {s.get(\"medium\",0)}')
+print(f'低优先级: {s.get(\"low\",0)}')
+if s.get('high',0) > 0:
+    print('::error::存在高优先级问题，必须修复')
+    sys.exit(1)
+"
+
+      - name: Run深度审计
+        id: audit
+        run: |
+          python scripts/audit_skill.py . --json > audit-result.json
+          cat audit-result.json | python -c "
+import sys,json
+d=json.load(sys.stdin)
+print(f'总分: {d.get(\"total_score\",0)}/{d.get(\"total_possible\",36)}')
+print(f'等级: {d.get(\"grade\",\"?\")}')
+tl=d.get('three_layer',{})
+for layer in ['必备层','推荐层','可选层']:
+    ld=tl.get(layer,{})
+    print(f'{layer}: {ld.get(\"passed\",0)}/{ld.get(\"total\",0)}')
+"
+
+      - name: Run安全扫描
+        id: security
+        run: |
+          python scripts/security_scan.py . --json > security-result.json
+          cat security-result.json | python -c "
+import sys,json
+d=json.load(sys.stdin)
+print(f'安全评分: {d.get(\"security_score\",0)}/100')
+print(f'等级: {d.get(\"grade\",\"?\")}')
+print(f'高风险: {d.get(\"high_count\",0)}')
+if d.get('high_count',0) > 0:
+    print('::error::存在高风险安全问题')
+    sys.exit(1)
+"
+
+      - name: Run供应链扫描
+        id: supply-chain
+        run: |
+          python scripts/supply_chain_scan.py . --generate-sbom
+        continue-on-error: true
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: |
+            validate-result.json
+            audit-result.json
+            security-result.json
+            sbom.json
+
+      - name: Create audit summary
+        run: |
+          echo "## 审计报告摘要" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 规范校验: 通过" >> $GITHUB_STEP_SUMMARY
+          echo "- 深度审计: 见附件" >> $GITHUB_STEP_SUMMARY
+          echo "- 安全扫描: 见附件" >> $GITHUB_STEP_SUMMARY
