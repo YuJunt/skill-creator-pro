@@ -143,8 +143,37 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | **版本管理** | version_manager.py | `python3 scripts/version_manager.py` |
 | **描述优化** | description_optimizer.py | `python3 scripts/description_optimizer.py <skill-path>` |
 | **触发诊断** | diagnose_trigger.py | `python3 scripts/diagnose_trigger.py <skill-path>` |
+| **一键安装** | install.sh | `bash scripts/install.sh <skill-path> [target-dir]` |
+| **8层评估框架** | eval_framework.py | `python3 scripts/eval_framework.py <skill-path>` |
+| **基准聚合** | aggregate_benchmark.py | `python3 scripts/aggregate_benchmark.py <iteration-dir> --skill-name <name>` |
 
 > 💡 **按需加载原则**：以上工具不需要每次都用。遇到对应场景时再去看它的帮助（`--help`）。
+
+---
+
+## 核心参考文档导航（重要！按需加载）
+
+> 以下是核心参考文档，做对应工作时必须先读：
+
+| 场景 | 文档 | 什么时候读 |
+|------|------|-----------|
+| **深度审计/评审** | `references/36-element-checklist.md` | 审计技能时，36项检查清单 |
+| **端到端测试** | `references/e2e-testing-playbook.md` | 做端到端测试时，测试手册 |
+| **防LLM偷懒** | `references/llm-anti-laziness-guide.md` | 设计防偷懒机制时 |
+| **运行时保障** | `references/runtime-guard-guide.md` | 使用runtime_guard时 |
+| **自进化闭环** | `references/self-evolution-playbook.md` | 设计自进化机制时 |
+| **经验库建设** | `references/experience-library-guide.md` | 建设经验库时 |
+| **技术债管理** | `references/tech-debt-management.md` | 管理技术债时 |
+| **Gotchas合集** | `references/gotchas-collection.md` | 写Gotchas时参考 |
+| **最佳实践** | `references/best-practices.md` | 设计技能时参考 |
+| **架构模式** | `references/architecture-patterns.md` | 设计架构时参考 |
+| **设计哲学** | `references/design-philosophies.md` | 选择设计哲学时 |
+| **评估指南** | `references/evaluation-guide.md` | 做评估时参考 |
+| **多模型测试** | `references/multi-model-testing-guide.md` | 做多模型测试时 |
+| **预加载设计** | `references/preload-design-guide.md` | 设计预加载机制时 |
+| **输出格式** | `references/output-formats.md` | 设计输出格式时 |
+
+> 💡 **按需加载原则**：不需要全部读完，做对应工作时再去读对应的文档。
 
 ---
 
