@@ -272,6 +272,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | **评估流程编排（Executor Agent）** | `scripts/executor.py full <skill_dir>` |
 | **交互式HTML审核界面（Eval Viewer）** | `scripts/eval_viewer.py <benchmark_dir>` |
 | **自动描述改进（Description Optimizer）** | `scripts/description_optimizer.py <skill_dir>` |
+| **8层评估框架（Eight-Layer Evaluation）** | `scripts/eval_framework.py <run_dir>` |
 | 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
 | 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
 | 自进化闭环+经验库（执行→评估→复盘→经验提取→下批参考） | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
