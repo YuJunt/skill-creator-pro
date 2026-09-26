@@ -59,7 +59,7 @@ allowed-tools:
 | **新建技能** | "创建技能""新建skill""从零开始" | `references/best-practices.md` + `references/design-philosophies.md` + `references/36-element-checklist.md` + `scripts/create_skill.py` | 完整版 |
 | **优化技能** | "优化技能""改进skill""重构" | `references/36-element-checklist.md` + `references/gotchas-collection.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 完整版 |
 | **深度评审** | "评审技能""技能审计""规范检查" | `references/36-element-checklist.md` + `references/review-process-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 评审报告 |
-| **端到端测试** | "测试技能""技能实测""E2E测试" | `references/e2e-testing-playbook.md` + `references/routing-mustread-test-cases.md` + `references/evaluation-driven-development.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 测试报告 |
+| **端到端测试** | "测试技能""技能实测""E2E测试" | `references/eval-practice.md` + `references/routing-mustread-test-cases.md` + `references/evaluation-guide.md` + `scripts/create_skill.py` + `scripts/output_validator.py` | 测试报告 |
 
 **路由是渐进式披露的开关：路由确定后，才知道该读什么文档、用什么流程、输出什么格式。**
 
@@ -141,11 +141,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | **反馈循环** | feedback_loop.py | `python3 scripts/feedback_loop.py` |
 | **使用可观测性** | skill_observability.py | `python3 scripts/skill_observability.py log --skill-name <name>` |
 | **版本管理** | version_manager.py | `python3 scripts/version_manager.py` |
-| **描述优化** | description_optimizer.py | `python3 scripts/description_optimizer.py <skill-path>` |
-| **触发诊断** | diagnose_trigger.py | `python3 scripts/diagnose_trigger.py <skill-path>` |
+| **描述优化与触发诊断** | description_optimizer.py | `python3 scripts/description_optimizer.py optimize <skill-path>` 或 `diagnose <skill-path>` |
+| **评估运行与评分** | eval_runner.py | `python3 scripts/eval_runner.py eval --type all` 或 `grade <run-dir>` |
 | **一键安装** | install.sh | `bash scripts/install.sh <skill-path> [target-dir]` |
-| **8层评估框架** | eval_framework.py | `python3 scripts/eval_framework.py <skill-path>` |
-| **基准聚合** | aggregate_benchmark.py | `python3 scripts/aggregate_benchmark.py <iteration-dir> --skill-name <name>` |
 
 > 💡 **按需加载原则**：以上工具不需要每次都用。遇到对应场景时再去看它的帮助（`--help`）。
 
@@ -158,7 +156,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 场景 | 文档 | 什么时候读 |
 |------|------|-----------|
 | **深度审计/评审** | `references/36-element-checklist.md` | 审计技能时，36项检查清单 |
-| **端到端测试** | `references/e2e-testing-playbook.md` | 做端到端测试时，测试手册 |
+| **端到端测试** | `references/eval-practice.md` | 做端到端测试时，测试手册 |
 | **防LLM偷懒** | `references/llm-anti-laziness-guide.md` | 设计防偷懒机制时 |
 | **运行时保障** | `references/runtime-guard-guide.md` | 使用runtime_guard时 |
 | **自进化闭环** | `references/self-evolution-playbook.md` | 设计自进化机制时 |
@@ -182,7 +180,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 > **自由度说明**: 按步骤标注自由度等级——🟢高自由度（灵活调整，可根据情况变化）/ 🟡中自由度（推荐流程，建议按此执行）/ 🔴低自由度（必须严格执行，不允许跳过或变通）。脆弱步骤（出错代价高）用🔴，灵活步骤用🟢。
 
 ### 新建技能流程
-0. **先写eval（RED-GREEN-REFACTOR）** 🔴低自由度：写3个eval用例（正常/边界/质量），定义通过标准。详见 `references/eval-grader-design.md`
+0. **先写eval（RED-GREEN-REFACTOR）** 🔴低自由度：写3个eval用例（正常/边界/质量），定义通过标准。详见 `references/evaluation-guide.md`
 1. **需求分析** 🟢高自由度：与用户确认技能目标、触发场景、设计哲学
 2. **架构设计** 🟡中自由度：选择设计哲学，规划目录结构，确定scripts/references/examples
 3. **模板生成** 🔴低自由度：必须运行 `python3 scripts/init_skill_pro.py`，禁止手动创建目录结构
@@ -310,15 +308,10 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 技能创建最佳实践（默认位置/Browser Use/禁止文件/迭代流程） | `references/best-practices.md` |
 | 模板填充指南（14个模板每个占位符怎么填+质量标准） | `references/template-filling-guide.md` |
 | 选择技能设计哲学（工具包装vs方法论） | `references/design-philosophies.md` |
-| 评估体系总览（8维度+用例模板+报告模板） | `references/evaluation-guide.md` |
-| 评估驱动开发（先建eval再写技能+三种grader设计+基准回归） | `references/evaluation-driven-development.md` |
-| 评估用例模板（触发/行为/质量三类用例） | `references/evaluation-cases.md` |
-| 企业级技能管理（去重/合并/版本/分发） | `references/enterprise-skill-management.md` |
+| 评估体系总览（8维度+用例模板+报告模板+评估驱动开发） | `references/evaluation-guide.md` |
+| 评估实践手册（评估用例模板+端到端测试完整流程） | `references/eval-practice.md` |
 | Prompt Caching优化（技能结构如何利用缓存降成本） | `references/prompt-caching-guide.md` |
 | MCP集成指导（什么时候用MCP+安全注意事项+降级策略） | `references/mcp-integration-guide.md` |
-| 技能生命周期（归档/删除SLA+退役信号+上下文膨胀监控） | `references/skill-lifecycle-guide.md` |
-| 盲比较A/B测试（消除偏见的版本对比方法） | `references/blind-comparator-guide.md` |
-| 技能注册表（程序化发现所有技能的元数据格式） | `references/skill-registry-format.md` |
 | 需求发现（从不完备brief中主动发现遗漏需求） | `references/requirement-discovery-guide.md` |
 | 自由度匹配（根据任务脆弱性调整指令严格程度） | `references/degrees-of-freedom.md` |
 | 技能组合（一技能一职责，多技能组合原则） | `references/skill-composition.md` |
@@ -330,7 +323,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 设计技能架构，需要模式参考 | `references/architecture-patterns.md` |
 | 避免常见坑，需要30个真实案例 | `references/gotchas-collection.md` |
 | 安全审计，需要检查清单 | `references/security-audit-checklist.md` |
-| 端到端测试，需要完整手册 | `references/e2e-testing-playbook.md` |
+| 端到端测试，需要完整手册 | `references/eval-practice.md` |
 | 对抗LLM偷懒，需要系统性策略 | `references/llm-anti-laziness-guide.md` |
 | 设计预加载机制，需要完整方案 | `references/preload-design-guide.md` |
 | 自进化闭环+经验库 | `references/self-evolution-playbook.md` + `references/experience-library-guide.md` |
@@ -340,7 +333,7 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 做规范评审，需要7维度检查清单 | `references/review-process-guide.md` |
 | 快速上手/常见问题/完整示例 | `references/quick-start.md` / `references/faq.md` / `examples/` |
 
-> **评估工具脚本**（grader/comparator/analyzer/executor/eval_viewer/eval_framework等9个）用法见 `references/command-reference.md`
+> **评估工具脚本**（eval_runner.py）用法见 `references/command-reference.md`
 
 ### L3: 脚本自动完成 + assets资源 + 官方权威资源
 规范校验/深度审计/模板生成——全部脚本做。`assets/`存放输出用资源文件。`official/`内置官方skill-creator-for-work作为只读权威参考。
