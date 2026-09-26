@@ -107,6 +107,9 @@ python3 skill-creator-pro/scripts/create_skill.py optimize my-skill
 | 一键安装 | `bash scripts/install.sh <skill-path>` |
 | 供应链扫描 | `python3 scripts/supply_chain_scan.py <skill-path> --generate-sbom` |
 | 评估测试 | `python3 scripts/run_eval.py --type all` |
+| 基准聚合 | `python3 scripts/aggregate_benchmark.py <iteration_dir> --skill-name <name>` |
+| 描述优化 | `python3 scripts/run_loop.py --eval-set <path> --skill-path <path>` |
+| 反馈循环 | `python3 scripts/feedback_loop.py init <skill_path>` |
 | 发布审计 | `python3 scripts/release_audit.py --skill <skill-path>` |
 | 打包发布 | `bash scripts/package.sh --output <dir>` |
 
