@@ -29,26 +29,30 @@ from pathlib import Path
 
 def init_workspace(skill_dir):
     """初始化评估工作空间"""
-    skill_path = Path(skill_dir)
-    if not skill_path.exists():
-        print(f"❌ 技能目录不存在: {skill_dir}", file=sys.stderr)
+    try:
+        skill_path = Path(skill_dir)
+        if not skill_path.exists():
+            print(f"❌ 技能目录不存在: {skill_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        # 创建工作空间
+        workspace = skill_path / "eval_workspace"
+        workspace.mkdir(exist_ok=True)
+
+        # 创建子目录
+        (workspace / "with_skill").mkdir(exist_ok=True)
+        (workspace / "baseline").mkdir(exist_ok=True)
+        (workspace / "results").mkdir(exist_ok=True)
+
+        print(f"✅ 评估工作空间已创建: {workspace}")
+        print(f"   with_skill/: 使用技能的运行")
+        print(f"   baseline/: 不使用技能的基线运行")
+        print(f"   results/: 评分/比较/分析结果")
+
+        return str(workspace)
+    except Exception as e:
+        print(f"❌ 初始化失败: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # 创建工作空间
-    workspace = skill_path / "eval_workspace"
-    workspace.mkdir(exist_ok=True)
-
-    # 创建子目录
-    (workspace / "with_skill").mkdir(exist_ok=True)
-    (workspace / "baseline").mkdir(exist_ok=True)
-    (workspace / "results").mkdir(exist_ok=True)
-
-    print(f"✅ 评估工作空间已创建: {workspace}")
-    print(f"   with_skill/: 使用技能的运行")
-    print(f"   baseline/: 不使用技能的基线运行")
-    print(f"   results/: 评分/比较/分析结果")
-
-    return str(workspace)
 
 
 def generate_prompts(skill_dir):
@@ -138,23 +142,23 @@ def collect_results(run_dir, output_dir):
 
 def grade_run(run_dir):
     """对单次运行评分"""
+    import subprocess
     grader_script = Path(__file__).parent / "grader.py"
-    cmd = f"python3 {grader_script} {run_dir}"
-    os.system(cmd)
+    subprocess.run([sys.executable, str(grader_script), run_dir], check=False)
 
 
 def compare_runs(run_a, run_b):
     """比较两个运行"""
+    import subprocess
     comparator_script = Path(__file__).parent / "comparator.py"
-    cmd = f"python3 {comparator_script} {run_a} {run_b}"
-    os.system(cmd)
+    subprocess.run([sys.executable, str(comparator_script), run_a, run_b], check=False)
 
 
 def analyze_benchmark(benchmark_dir):
     """分析基准"""
+    import subprocess
     analyzer_script = Path(__file__).parent / "analyzer.py"
-    cmd = f"python3 {analyzer_script} {benchmark_dir}"
-    os.system(cmd)
+    subprocess.run([sys.executable, str(analyzer_script), benchmark_dir], check=False)
 
 
 def main():
