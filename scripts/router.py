@@ -81,7 +81,7 @@ MODES = {
         ],
         "must_read": [
             "references/36-element-checklist.md",
-            "references/review-process-guide.md",
+            "references/review-and-security-guide.md",
             "references/best-practices.md",
         ],
         "workflow": "create_skill.py review → validate → audit → 评审报告",
@@ -100,8 +100,8 @@ MODES = {
             "stress test", "benchmark", "try it", "does it work",
         ],
         "must_read": [
-            "references/eval-practice.md",
-            "references/routing-mustread-test-cases.md",
+            "references/evaluation-cases.md",
+            "references/advanced-testing-guide.md",
             "references/evaluation-guide.md",
         ],
         "workflow": "create_skill.py test → validate → 冒烟测试 → 端到端测试",

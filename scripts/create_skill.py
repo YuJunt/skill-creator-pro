@@ -649,9 +649,11 @@ def main():
         "test": "端到端测试",
         "upgrade": "技能升级",
     }
-    route_mode = MODE_ROUTE_MAP.get(args.command, args.command)
-    print(f"🔀 路由: {route_mode}")
-    print()
+    # route命令特殊处理：先路由再输出，避免输出"route"而不是实际模式
+    if args.command != "route":
+        route_mode = MODE_ROUTE_MAP.get(args.command, args.command)
+        print(f"🔀 路由: {route_mode}")
+        print()
 
     try:
         if args.command == "create":
@@ -680,7 +682,20 @@ def main():
             if args.json:
                 print(json.dumps(decision.to_dict(), ensure_ascii=False, indent=2))
             else:
-                print(f"\n{'='*60}")
+                # 先输出标准路由行（修复Bug：之前输出"route"而不是实际模式）
+                MODE_NAME_MAP = {
+                    "create": "新建技能",
+                    "optimize": "优化技能",
+                    "review": "深度评审",
+                    "test": "端到端测试",
+                    "refuse": "🚫拒绝",
+                    "ambiguous": "❓模糊",
+                }
+                mode_name = MODE_NAME_MAP.get(decision.mode, decision.mode)
+                print(f"🔀 路由: {mode_name}")
+                print()
+
+                print(f"{'='*60}")
                 print(f"🔀 自动路由结果")
                 print(f"{'='*60}")
                 print(f"\n📥 输入: {args.message}")
@@ -721,8 +736,10 @@ def main():
             sys.exit(1)
 
         # 输出JSON结果（便于后续处理）
-        result["timestamp"] = datetime.now().isoformat()
-        print(f"\n📋 执行结果: {json.dumps(result, ensure_ascii=False, indent=2)}")
+        # route命令的--json模式只输出纯JSON，不附加执行结果（避免破坏JSON格式）
+        if not (args.command == "route" and args.json):
+            result["timestamp"] = datetime.now().isoformat()
+            print(f"\n📋 执行结果: {json.dumps(result, ensure_ascii=False, indent=2)}")
 
     except RuntimeError as e:
         print(f"\n❌ 执行失败: {e}", file=sys.stderr)
