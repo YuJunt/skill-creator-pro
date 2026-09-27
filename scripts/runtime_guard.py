@@ -41,7 +41,7 @@ def load_usage():
     if USAGE_FILE.exists():
         with open(USAGE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"scripts_called": [], "docs_read": [], "steps_completed": [], "started_at": datetime.now().isoformat()}
+    return {"scripts_called": [], "docs_read": [], "steps_completed": [], "route_outputs": [], "started_at": datetime.now().isoformat()}
 
 
 def save_usage(usage):
@@ -67,6 +67,20 @@ def cmd_track(args):
         usage["steps_completed"].append(entry)
     save_usage(usage)
     print(f"✅ 已记录: [{args.type}] {args.step} - {args.action}")
+
+
+def cmd_route(args):
+    """记录路由行输出（防LLM忘记输出路由行）"""
+    usage = load_usage()
+    entry = {
+        "mode": args.mode,
+        "message": args.message,
+        "timestamp": datetime.now().isoformat(),
+    }
+    usage["route_outputs"].append(entry)
+    save_usage(usage)
+    print(f"✅ 路由行已记录: {args.mode}")
+    print(f"   累计输出: {len(usage['route_outputs'])}次")
 
 
 def cmd_verify(args):
@@ -124,6 +138,8 @@ def cmd_report(args):
         "doc_coverage_pct": round(doc_coverage, 1),
         "unused_docs": sorted(unused_docs),
         "steps_completed": len(usage["steps_completed"]),
+        "route_outputs": len(usage.get("route_outputs", [])),
+        "route_output_modes": list(set(r["mode"] for r in usage.get("route_outputs", []))),
     }
     
     # 偏差检测
@@ -132,6 +148,11 @@ def cmd_report(args):
         deviations.append(f"⚠️ 脚本使用率仅{script_coverage:.0f}%，低于30%，可能存在严重偷懒")
     if doc_coverage < 20:
         deviations.append(f"⚠️ 文档使用率仅{doc_coverage:.0f}%，低于20%，可能存在浅用")
+    route_count = len(usage.get("route_outputs", []))
+    if route_count == 0:
+        deviations.append("🔴 路由行输出为0次！LLM完全忘记输出路由行，触发路由机制失效")
+    elif route_count < 3:
+        deviations.append(f"⚠️ 路由行仅输出{route_count}次，可能存在部分轮次忘记输出")
     
     report["deviations"] = deviations
     report["health"] = "🔴 严重偷懒" if script_coverage < 20 else ("🟡 可能偷懒" if script_coverage < 40 else "🟢 正常")
@@ -315,6 +336,11 @@ def main():
     track_p.add_argument("--action", required=True, help="动作描述")
     track_p.add_argument("--type", choices=["script", "doc", "step"], required=True, help="类型")
     
+    # route（路由行输出记录）
+    route_p = sub.add_parser("route", help="记录路由行输出（防LLM忘记输出路由行）")
+    route_p.add_argument("--mode", required=True, help="路由模式（如新建技能/优化技能/深度评审/端到端测试）")
+    route_p.add_argument("--message", default="", help="用户消息摘要")
+    
     # verify
     verify_p = sub.add_parser("verify", help="完成验证")
     verify_p.add_argument("--required-steps", required=True, help="必需步骤列表（逗号分隔）")
@@ -350,6 +376,8 @@ def main():
     
     if args.command == "track":
         cmd_track(args)
+    elif args.command == "route":
+        cmd_route(args)
     elif args.command == "verify":
         sys.exit(cmd_verify(args))
     elif args.command == "report":
