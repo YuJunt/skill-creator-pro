@@ -70,17 +70,55 @@ def cmd_track(args):
 
 
 def cmd_route(args):
-    """记录路由行输出（防LLM忘记输出路由行）"""
+    """记录路由行输出（防LLM忘记输出路由行）
+    
+    增强功能：
+    - 记录完整路由行文本（--line参数）
+    - 自动校验路由行格式是否正确
+    - 格式错误时给出明确警告
+    """
     usage = load_usage()
+    
+    # 校验路由行格式
+    route_line = getattr(args, 'line', None)
+    format_valid = True
+    format_error = ""
+    
+    if route_line:
+        # 检查是否以"🔀 路由:"开头
+        if not route_line.startswith("🔀 路由:"):
+            format_valid = False
+            format_error = "路由行必须以'🔀 路由:'开头"
+        # 检查模式是否合法
+        else:
+            mode_part = route_line.replace("🔀 路由:", "").strip()
+            valid_modes = ["🚫拒绝", "新建技能", "优化技能", "深度评审", "端到端测试"]
+            if not any(mode_part.startswith(m) for m in valid_modes):
+                format_valid = False
+                format_error = f"路由模式'{mode_part}'不合法，必须是{valid_modes}之一"
+    
     entry = {
         "mode": args.mode,
         "message": args.message,
+        "route_line": route_line,
+        "format_valid": format_valid,
+        "format_error": format_error,
         "timestamp": datetime.now().isoformat(),
     }
     usage["route_outputs"].append(entry)
     save_usage(usage)
+    
+    count = len(usage["route_outputs"])
     print(f"✅ 路由行已记录: {args.mode}")
-    print(f"   累计输出: {len(usage['route_outputs'])}次")
+    print(f"   累计输出: {count}次")
+    if route_line:
+        if format_valid:
+            print(f"   格式校验: ✅ 正确")
+        else:
+            print(f"   格式校验: ❌ 错误 - {format_error}")
+            print(f"   正确格式: 🔀 路由: {{模式}}")
+    else:
+        print(f"   ⚠️ 未传入完整路由行文本（建议用--line参数传入，便于格式校验）")
 
 
 def cmd_verify(args):
@@ -105,6 +143,152 @@ def cmd_verify(args):
     
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["passed"] else 1
+
+
+def cmd_gate(args):
+    """门禁检查器：交付前检查所有硬门禁是否通过
+    
+    检查项：
+    1. 路由行是否输出（route记录）
+    2. 路由行格式是否正确
+    3. 关键脚本是否调用（根据模式不同）
+    4. 关键文档是否阅读（根据模式不同）
+    
+    退出码：0=全部通过，1=有门禁未通过（严格模式）
+    """
+    usage = load_usage()
+    mode = args.mode
+    
+    # 定义各模式的关键脚本和文档
+    MODE_GATES = {
+        "create": {
+            "required_scripts": ["init_skill_pro", "validate_skill", "audit_skill"],
+            "required_docs": ["best-practices.md", "design-philosophies.md", "36-element-checklist.md"],
+            "label": "新建技能",
+        },
+        "optimize": {
+            "required_scripts": ["validate_skill", "audit_skill", "output_validator"],
+            "required_docs": ["36-element-checklist.md", "gotchas-collection.md", "best-practices.md"],
+            "label": "优化技能",
+        },
+        "review": {
+            "required_scripts": ["validate_skill", "audit_skill"],
+            "required_docs": ["36-element-checklist.md", "review-process-guide.md", "best-practices.md"],
+            "label": "深度评审",
+        },
+        "test": {
+            "required_scripts": ["validate_skill", "output_validator"],
+            "required_docs": ["eval-practice.md", "evaluation-guide.md"],
+            "label": "端到端测试",
+        },
+    }
+    
+    gate_config = MODE_GATES.get(mode, MODE_GATES["optimize"])
+    
+    checks = []
+    all_passed = True
+    
+    # 门禁1：路由行是否输出
+    route_outputs = usage.get("route_outputs", [])
+    route_count = len(route_outputs)
+    route_passed = route_count >= args.min_route_outputs
+    if not route_passed:
+        all_passed = False
+    checks.append({
+        "gate": "路由行输出",
+        "passed": route_passed,
+        "detail": f"输出{route_count}次（要求≥{args.min_route_outputs}次）",
+        "severity": "critical" if not route_passed else "ok",
+    })
+    
+    # 门禁2：路由行格式是否正确
+    if route_outputs:
+        format_errors = [r for r in route_outputs if not r.get("format_valid", True)]
+        format_passed = len(format_errors) == 0
+        if not format_passed:
+            all_passed = False
+        checks.append({
+            "gate": "路由行格式",
+            "passed": format_passed,
+            "detail": f"{len(route_outputs)-len(format_errors)}/{len(route_outputs)}次格式正确",
+            "severity": "high" if not format_passed else "ok",
+        })
+    else:
+        checks.append({
+            "gate": "路由行格式",
+            "passed": False,
+            "detail": "无路由行记录，无法校验格式",
+            "severity": "high",
+        })
+        all_passed = False
+    
+    # 门禁3：关键脚本是否调用
+    called_scripts = set(s["step"] for s in usage.get("scripts_called", []))
+    required_scripts = gate_config["required_scripts"]
+    missing_scripts = [s for s in required_scripts if s not in called_scripts]
+    scripts_passed = len(missing_scripts) == 0
+    if not scripts_passed:
+        all_passed = False
+    checks.append({
+        "gate": "关键脚本调用",
+        "passed": scripts_passed,
+        "detail": f"已调用{len(required_scripts)-len(missing_scripts)}/{len(required_scripts)}个" + 
+                  (f"，缺失: {missing_scripts}" if missing_scripts else ""),
+        "severity": "high" if not scripts_passed else "ok",
+    })
+    
+    # 门禁4：关键文档是否阅读
+    read_docs = set(d["step"] for d in usage.get("docs_read", []))
+    required_docs = gate_config["required_docs"]
+    missing_docs = [d for d in required_docs if d not in read_docs]
+    docs_passed = len(missing_docs) == 0
+    if not docs_passed:
+        all_passed = False
+    checks.append({
+        "gate": "关键文档阅读",
+        "passed": docs_passed,
+        "detail": f"已阅读{len(required_docs)-len(missing_docs)}/{len(required_docs)}个" +
+                  (f"，缺失: {missing_docs}" if missing_docs else ""),
+        "severity": "medium" if not docs_passed else "ok",
+    })
+    
+    # 输出结果
+    print("\n" + "=" * 60)
+    print(f"🔒 门禁检查报告（模式: {gate_config['label']}）")
+    print("=" * 60)
+    
+    for check in checks:
+        icon = "✅" if check["passed"] else "❌"
+        print(f"\n{icon} {check['gate']}")
+        print(f"   {check['detail']}")
+    
+    print("\n" + "=" * 60)
+    if all_passed:
+        print("✅ 所有门禁通过，可以交付")
+    else:
+        print("❌ 有门禁未通过，不能交付")
+        print("💡 请修复上述问题后重新运行 gate 检查")
+    print("=" * 60)
+    
+    # JSON输出
+    result = {
+        "mode": mode,
+        "mode_label": gate_config["label"],
+        "checks": checks,
+        "all_passed": all_passed,
+        "passed_count": sum(1 for c in checks if c["passed"]),
+        "total_count": len(checks),
+    }
+    print("\n" + json.dumps(result, ensure_ascii=False, indent=2))
+    
+    # 严格模式：任何门禁不通过都exit(1)
+    if args.strict and not all_passed:
+        return 1
+    # 非严格模式：只有critical级别不通过才exit(1)
+    critical_failed = any(c["severity"] == "critical" and not c["passed"] for c in checks)
+    if critical_failed:
+        return 1
+    return 0
 
 
 def cmd_report(args):
@@ -340,10 +524,18 @@ def main():
     route_p = sub.add_parser("route", help="记录路由行输出（防LLM忘记输出路由行）")
     route_p.add_argument("--mode", required=True, help="路由模式（如新建技能/优化技能/深度评审/端到端测试）")
     route_p.add_argument("--message", default="", help="用户消息摘要")
+    route_p.add_argument("--line", default="", help="完整路由行文本（用于格式校验，如'🔀 路由: 深度评审'）")
     
     # verify
     verify_p = sub.add_parser("verify", help="完成验证")
     verify_p.add_argument("--required-steps", required=True, help="必需步骤列表（逗号分隔）")
+    
+    # gate（门禁检查器：检查路由行+关键脚本+关键文档）
+    gate_p = sub.add_parser("gate", help="门禁检查器：交付前检查所有硬门禁是否通过")
+    gate_p.add_argument("--mode", default="optimize", choices=["create", "optimize", "review", "test"],
+                        help="工作模式（决定检查哪些门禁）")
+    gate_p.add_argument("--min-route-outputs", type=int, default=1, help="最少路由行输出次数（默认1）")
+    gate_p.add_argument("--strict", action="store_true", help="严格模式：任何门禁不通过都exit(1)")
     
     # report
     sub.add_parser("report", help="生成使用覆盖率报告")
@@ -380,6 +572,8 @@ def main():
         cmd_route(args)
     elif args.command == "verify":
         sys.exit(cmd_verify(args))
+    elif args.command == "gate":
+        sys.exit(cmd_gate(args))
     elif args.command == "report":
         cmd_report(args)
     elif args.command == "reset":
