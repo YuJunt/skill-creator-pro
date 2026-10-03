@@ -29,7 +29,7 @@ def run_script(script_name, *args, timeout=30):
     """运行脚本并返回结果"""
     cmd = [sys.executable, str(SCRIPTS_DIR / script_name)] + list(args)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
         return result
     except subprocess.TimeoutExpired:
         return None

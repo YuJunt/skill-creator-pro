@@ -29,7 +29,7 @@ TOTAL_AUDIT_ITEMS = 36               # 审计项总数
 REQUIRED_ITEMS = 20                  # 必备层项数
 RECOMMENDED_ITEMS = 10               # 推荐层项数
 OPTIONAL_ITEMS = 6                   # 可选层项数
-WEIGHTED_TOTAL = 53                  # 加权总分：20*2 + 10*1 + 6*0.5
+WEIGHTED_TOTAL = 50                  # 加权总分：20*2 + 10*1 = 50（可选层不计入质量分）
 SCORE_EXCELLENT = 90                 # 优秀评级阈值
 SCORE_GOOD = 78                      # 良好评级阈值
 SCORE_PASS = 67                      # 及格评级阈值
@@ -69,8 +69,8 @@ def detect_skill_type(skill_path, skill_md_content):
                     if any(k in content for k in ["requests", "urllib", "http", "api", "token", "key"]):
                         has_network_script = True
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     if has_external_api or has_credentials or has_cloud or has_network_script:
         return "networked"
@@ -134,8 +134,8 @@ def audit_required_layer(skill_path, skill_md_content):
                     if re.search(r"\]\((?!https?://)[^)]*\.md\)", content):
                         deep_ref = True
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     results.append({"item": "文件引用一级深度",
                     "passed": not deep_ref,
                     "detail": "无嵌套引用" if not deep_ref else "发现references文件间的嵌套引用"})
@@ -238,8 +238,8 @@ def audit_required_layer(skill_path, skill_md_content):
                     if len(content) > MIN_EXAMPLE_CONTENT_LENGTH:  # 示例有实质内容
                         has_quality_example = True
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     results.append({"item": "示例驱动",
                     "passed": has_quality_example or (example_count > 0),
                     "detail": "有完整示例" if (has_quality_example or example_count > 0)
@@ -283,8 +283,8 @@ def audit_required_layer(skill_path, skill_md_content):
                         if "try:" in fp.read():
                             has_error_handling = True
                             break
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     has_error_in_md = "错误处理" in skill_md_content or "降级" in skill_md_content or "异常" in skill_md_content
     results.append({"item": "错误处理",
                     "passed": has_error_handling or has_error_in_md,
@@ -412,13 +412,38 @@ def audit_recommended_layer(skill_path, skill_md_content, skill_type):
 
     # ---- 进化安全（2项）----
 
-    # 29. 自进化闭环
-    has_evolution = ("自进化" in skill_md_content or "复盘" in skill_md_content or
-                     "经验提取" in skill_md_content or "持续优化" in skill_md_content)
-    results.append({"item": "自进化闭环",
+    # 29. 可观测性+反馈闭环（人在环）——文本+脚本+人工确认三重检测
+    has_evolution_text = ("自进化" in skill_md_content or "复盘" in skill_md_content or
+                          "经验提取" in skill_md_content or "持续优化" in skill_md_content or
+                          "可观测" in skill_md_content or "人在环" in skill_md_content)
+    has_evolution_script = False
+    has_evolution_code = False
+    has_human_loop = ("人工确认" in skill_md_content or "人在环" in skill_md_content or
+                      "人工审批" in skill_md_content or "评审" in skill_md_content)
+    if os.path.exists(scripts_dir):
+        script_names = {f for f in os.listdir(scripts_dir) if f.endswith(".py")}
+        has_evolution_script = any("evolution" in n for n in script_names)
+        for sn in script_names:
+            try:
+                with open(os.path.join(scripts_dir, sn), "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read(20000)
+                    if "extract-gotchas" in content or "evolution_log" in content or "def cmd_log" in content:
+                        has_evolution_code = True
+                        break
+            except Exception as e:
+                print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
+    has_evolution = has_evolution_text or has_evolution_script or has_evolution_code
+    if (has_evolution_script or has_evolution_code) and has_human_loop:
+        evolution_detail = "有可观测性+反馈闭环（脚本机制+人在环确认，符合业界模式）"
+    elif has_evolution_script or has_evolution_code:
+        evolution_detail = "有可观测性脚本（evolution.py），⚠️ 缺人工确认/人在环环节——业界模式要求改进经人工审批"
+    elif has_evolution_text:
+        evolution_detail = "有文本声明，⚠️ 需人工核实是否真实运行——无脚本机制，可能只是文档声称"
+    else:
+        evolution_detail = "缺少可观测性/反馈闭环（建议：evolution.py log 记录 + extract-gotchas 人工确认沉淀经验）"
+    results.append({"item": "可观测性+反馈闭环（人在环）",
                     "passed": has_evolution,
-                    "detail": "有自进化机制" if has_evolution
-                    else "建议添加自进化闭环（实战→复盘→经验提取→下批参考）"})
+                    "detail": evolution_detail})
 
     # 30. 安全考虑
     has_security = ("安全" in skill_md_content or "权限" in skill_md_content or
@@ -449,8 +474,8 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
             try:
                 with open(os.path.join(scripts_dir, sn), "r", encoding="utf-8", errors="replace") as f:
                     script_contents[sn] = f.read(20000)  # 只读前20000字符
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     # 辅助函数：检测脚本中是否包含某个函数名
     def has_function(func_name):
@@ -466,21 +491,21 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
                 return True
         return False
 
-    # 31. 四方协同（特定领域架构）——增强：检测脚本实际实现
-    has_sifang_text = ("四方协同" in skill_md_content or "技能做确定性" in skill_md_content or
-                       "LLM做分析" in skill_md_content or "云端做持久化" in skill_md_content)
+    # 31. 职责边界（特定领域）——增强：检测脚本实际实现
+    has_boundary_text = ("职责边界" in skill_md_content or "技能做确定性" in skill_md_content or
+                         "LLM做分析" in skill_md_content or "平台做" in skill_md_content)
     # 脚本实现检测：有编排脚本(orchestrat) + 云端写入(feishu/lark) + 自进化(settle/backtest) 组合
     has_orchestrator = any("orchestrat" in n for n in script_names)
     has_cloud_write = any("batch" in n or "feishu" in n or "cloud_write" in n for n in script_names)
     has_settlement = any("settle" in n or "backtest" in n for n in script_names)
-    has_sifang_impl = has_orchestrator and has_cloud_write and has_settlement
-    has_sifang = has_sifang_text or has_sifang_impl
-    sifang_detail = "有四方协同架构（文本声明）" if has_sifang_text else (
-        "有四方协同架构（脚本实现检测：编排+云端写入+自进化）" if has_sifang_impl
-        else "可选：适合数据分析/持续监控等需要云端持久化的持续运行技能")
-    results.append({"item": "四方协同（特定领域）",
-                    "passed": has_sifang,
-                    "detail": sifang_detail})
+    has_boundary_impl = has_orchestrator and has_cloud_write and has_settlement
+    has_boundary = has_boundary_text or has_boundary_impl
+    boundary_detail = "有职责边界（文本声明）" if has_boundary_text else (
+        "有职责边界（脚本实现检测：编排+云端写入+反馈闭环）" if has_boundary_impl
+        else "按适用性判定：仅持续运行型复杂技能（脚本确定性计算+AI决策+平台能力+云端存储分工）需要；简单工具/文档型技能不适用(N/A)")
+    results.append({"item": "职责边界（特定领域）",
+                    "passed": has_boundary,
+                    "detail": boundary_detail})
 
     # 32. 定时任务——增强：检测脚本中是否有定时任务相关代码
     has_cron_text = ("定时" in skill_md_content or "cron" in skill_md_content.lower() or
@@ -491,7 +516,7 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
     results.append({"item": "定时任务",
                     "passed": has_cron,
                     "detail": "有定时任务" if has_cron
-                    else "可选：需要自动执行的技能可添加定时任务"})
+                    else "按适用性判定：有固定运行节奏（每日/每周自动跑，如结果发布后分析/收盘后复盘）的技能需要；按需触发技能不适用(N/A)。须真实创建并验证可触发，不能只写文档"})
 
     # 33. 通知推送——增强：检测脚本内容中是否有webhook/通知相关代码
     has_notify_text = ("通知" in skill_md_content or "推送" in skill_md_content or
@@ -502,7 +527,7 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
     results.append({"item": "通知推送",
                     "passed": has_notify,
                     "detail": "有通知推送" if has_notify
-                    else "可选：需要结果推送到手机端的技能可添加"})
+                    else "按适用性判定：结果需主动触达用户（报告推送/预警/提醒）的技能需要；对话内交付即可的技能不适用(N/A)"})
 
     # 34. 云端持久化（根据技能类型判断）——增强：检测脚本内容中是否有云端写入
     if skill_type == "standalone":
@@ -518,7 +543,7 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
         results.append({"item": "云端持久化",
                         "passed": has_cloud,
                         "detail": "有云端持久化" if has_cloud
-                        else "可选：关键数据需要跨期复用的技能可添加云端持久化"})
+                        else "按适用性判定：产生跨期复用数据（历史/战绩/经验/状态）的技能需要；一次性产出技能不适用(N/A)。须真实配置凭据并验证写入成功"})
 
     # 35. 指标监控——增强：检测脚本实际实现（stats.py/命中率统计函数）
     has_metrics_text = ("命中率" in skill_md_content or "战绩" in skill_md_content or
@@ -530,7 +555,7 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
     has_metrics = has_metrics_text or has_metrics_script or has_metrics_func or has_metrics_code
     metrics_detail = "有指标监控（文本声明）" if has_metrics_text else (
         "有指标监控（脚本实现检测）" if (has_metrics_script or has_metrics_func or has_metrics_code)
-        else "可选：需要持续优化的技能可添加指标监控（命中率/效果统计）")
+        else "按适用性判定：有可量化效果指标需长期跟踪（命中率/成功率/收益率）的技能需要；无历史效果追踪需求技能不适用(N/A)")
     results.append({"item": "指标监控",
                     "passed": has_metrics,
                     "detail": metrics_detail})
@@ -545,7 +570,7 @@ def audit_optional_layer(skill_path, skill_md_content, skill_type):
     has_experience = has_experience_text or has_experience_func or has_experience_script or has_experience_code
     exp_detail = "有经验回流/持久化工件（文本声明）" if has_experience_text else (
         "有经验回流/持久化工件（脚本实现检测）" if (has_experience_func or has_experience_script or has_experience_code)
-        else "可选：需要跨任务复用经验/中间结果的技能可添加")
+        else "按适用性判定：需多次运行越用越准的技能需要（最小实现=复盘后追加Gotchas，完整实现=经验库+查询接口）；任务间无学习关联技能不适用(N/A)")
     results.append({"item": "经验回流+持久化工件",
                     "passed": has_experience,
                     "detail": exp_detail})
@@ -564,7 +589,8 @@ def _safe_read(path, max_bytes=2_000_000):
             return ""
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
         return ""
 
 
@@ -612,7 +638,7 @@ def audit_skill(skill_path):
         "推荐层": recommended,
         "可选层": optional,
     }
-    weights = {"必备层": 2, "推荐层": 1, "可选层": 0.5}
+    weights = {"必备层": 2, "推荐层": 1, "可选层": 0}
 
     for layer_name, items in layers_data.items():
         # 排除n/a项
@@ -768,7 +794,7 @@ def print_result(result, output_json=False):
         tl_data = result["three_layer"][tl_name]
         bar_len = int(tl_data["passed"] / tl_data["total"] * 20) if tl_data["total"] > 0 else 0
         bar = "█" * bar_len + "░" * (20 - bar_len)
-        weight_label = {2: "权重×2", 1: "权重×1", 0.5: "权重×0.5"}[tl_data["weight"]]
+        weight_label = {2: "权重×2", 1: "权重×1", 0.5: "权重×0.5", 0: "权重×0（不计入质量分）"}[tl_data["weight"]]
         na_note = f" ({tl_data['na_count']}项不适用)" if tl_data["na_count"] > 0 else ""
         print(f"  {tl_name:4s} |{bar}| {tl_data['passed']}/{tl_data['total']}{na_note} ({weight_label})")
 
@@ -808,7 +834,7 @@ def print_result(result, output_json=False):
 
     if result["issues"]["low"]:
         print(f"\n{'─'*70}")
-        print(f"🟢 低优先级问题（可选层缺失，按需添加）:")
+        print(f"🟢 平台能力接入建议（不计入质量分；按适用性判定，不需要=N/A）:")
         print(f"{'─'*70}")
         for i, issue in enumerate(result["issues"]["low"], 1):
             print(f"  {i}. {issue}")
@@ -832,6 +858,18 @@ def main():
         print(f"❌ 审计失败: {e}", file=sys.stderr)
         sys.exit(1)
 
+
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
 
 if __name__ == "__main__":
     main()

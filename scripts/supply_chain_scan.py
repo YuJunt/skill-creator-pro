@@ -61,8 +61,8 @@ def parse_requirements(filepath):
                     name = match.group(1).lower()
                     version = match.group(2) or "*"
                     deps.append({"name": name, "version": version, "source": "requirements.txt"})
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     return deps
 
 
@@ -76,8 +76,8 @@ def parse_package_json(filepath):
             if section in data:
                 for name, version in data[section].items():
                     deps.append({"name": name.lower(), "version": version, "source": f"package.json:{section}"})
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     return deps
 
 
@@ -274,8 +274,8 @@ def check_license_compliance(skill_path):
                         "message": f"检测到{license_type}许可证，请注意传染性合规要求"
                     })
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     return findings
 
@@ -322,9 +322,10 @@ def calculate_file_hash(file_path):
     """计算文件的SHA-256哈希"""
     import hashlib
     try:
-        with open(file_path, "rb") as f:
+        with open(file_path, "rb", encoding="utf-8") as f:
             return hashlib.sha256(f.read()).hexdigest()
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
         return None
 
 
@@ -368,7 +369,8 @@ def generate_aibom(skill_path):
             file_hash = calculate_file_hash(file_path)
             try:
                 line_count = sum(1 for _ in open(file_path, "r", encoding="utf-8", errors="replace"))
-            except Exception:
+            except Exception as e:
+                print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
                 line_count = 0
 
             components.append({
@@ -551,6 +553,18 @@ def main():
 
     sys.exit(1 if high > 0 else 0)
 
+
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
 
 if __name__ == "__main__":
     main()

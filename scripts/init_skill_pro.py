@@ -350,6 +350,18 @@ def main():
         handle_error(f"执行失败: {{str(e)}}", exit_code=2)
 
 
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 if __name__ == "__main__":
     main()
 '''
@@ -500,6 +512,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
+        files["scripts/evolution.py"] = EVOLUTION_SCRIPT_TEMPLATE
 
     elif philosophy == "process":
         # Process模式：references方法论文档 + 检查清单 + 编排脚本 + 校验脚本 + 工作流示例 + 评估用例 + 运行时保障
@@ -510,6 +523,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         files["scripts/runtime_guard.py"] = _get_runtime_guard_template(skill_title)
         files["examples/example-workflow.md"] = EXAMPLE_WORKFLOW_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
+        files["scripts/evolution.py"] = EVOLUTION_SCRIPT_TEMPLATE
 
     else:
         # Mixed模式：完整专业技能（4个脚本 + 2个references + 1个示例）
@@ -520,6 +534,7 @@ def init_skill(skill_name, output_dir, skill_title=None, skill_description=None,
         files["references/best-practices.md"] = BEST_PRACTICES_TEMPLATE.format(skill_title=skill_title)
         files["references/evaluation-cases.md"] = EVALUATION_CASES_TEMPLATE.format(skill_title=skill_title)
         files["examples/example-usage.md"] = EXAMPLE_USAGE_TEMPLATE.format(skill_title=skill_title)
+        files["scripts/evolution.py"] = EVOLUTION_SCRIPT_TEMPLATE
 
     # 写入文件
     try:

@@ -214,14 +214,44 @@ python3 scripts/run_loop.py --eval-set <path> --skill-path <path> --max-iteratio
 
 ## 四、优化工具脚本（3个）
 
-### 18. description_optimizer.py（自动描述改进）
+### 18. description_optimizer.py（自动描述改进+优化循环）
+
+**子命令**：
+
+| 子命令 | 用途 | 关键参数 |
+|--------|------|---------|
+| `optimize` | 单次描述优化 | `skill_path`（必填） |
+| `diagnose` | 触发问题诊断 | `skill_path`、`--json` |
+| `run-loop` | 描述优化自动循环（对齐官方skill-creator） | `skill_path`、`--eval-set`、`--max-iterations`、`--num-candidates`、`--apply`、`--json` |
+
+**常用命令**：
 
 ```bash
-python3 scripts/description_optimizer.py <skill_dir>
-python3 scripts/description_optimizer.py <skill_dir> --auto  # 自动改进模式
+# 单次描述优化
+python3 scripts/description_optimizer.py optimize <skill_dir>
+
+# 触发问题诊断
+python3 scripts/description_optimizer.py diagnose <skill-path> --json
+
+# 描述优化自动循环（核心功能，对齐官方skill-creator的run_loop）
+python3 scripts/description_optimizer.py run-loop <skill-path> \
+  --eval-set evals/trigger-evals.json \  # 触发测试用例集（JSON数组，含query和should_trigger）
+  --max-iterations 5 \                    # 最大迭代次数（默认5）
+  --num-candidates 5 \                    # 每轮候选description数量（默认5）
+  --apply                                  # 自动应用最佳description到SKILL.md
+
+# 简化版（不指定eval-set，基于规则评估）
+python3 scripts/description_optimizer.py run-loop <skill-path> --max-iterations 3
 ```
 
-检查：三要素（What/When/Differentiator）/ 长度 / 触发词 / 不适用于
+**run-loop核心流程**：
+1. 加载eval set，**60%训练+40%测试**分割（防过拟合）
+2. 评估当前description（训练集+测试集）
+3. 迭代：生成5个候选→训练集评估→top3测试集验证→**用测试集分数选择最佳**
+4. 最多5次迭代，连续2轮无提升提前停止
+5. 输出迭代报告和最佳description，`--apply`自动应用
+
+**检查维度**：三要素（What/When/Differentiator）/ 长度 / 触发词 / 不适用于 / 触发率模拟
 
 ---
 
@@ -243,6 +273,134 @@ python3 scripts/upgrade_skill.py <skill-path> --apply  # 应用升级
 ```
 
 检查：frontmatter / description / 冗余文件 / 脚本错误处理 / 渐进式披露
+
+---
+
+### 20.5. blind_compare.py（盲比较·Blind A/B Comparison）
+
+**用途**：严格比较两个版本的技能，用户不知道哪个是新版，**避免确认偏误**。对齐Anthropic官方skill-creator的comparator agent设计。
+
+**子命令**：
+
+| 子命令 | 用途 | 关键参数 |
+|--------|------|---------|
+| `compare` | 生成盲比较报告（随机打乱顺序，不标注哪个是新版） | `skill_a`、`skill_b` |
+| `reveal` | 揭示答案并统计偏好 | `result_file`、`--prefer X/Y/tie` |
+| `report` | 查看完整盲比较报告 | `result_file` |
+
+**常用命令**：
+
+```bash
+# 第1步：生成盲比较报告（输出为"技能X"和"技能Y"，不标注哪个是新版）
+python3 scripts/blind_compare.py compare <skill-a-path> <skill-b-path>
+# 输出：9项指标对比（规范校验/深度审计/安全扫描/基本信息），指标优势统计
+
+# 第2步：用户基于指标客观评价后，揭示答案
+python3 scripts/blind_compare.py reveal <result-json> --prefer X   # 认为技能X更好
+python3 scripts/blind_compare.py reveal <result-json> --prefer Y   # 认为技能Y更好
+python3 scripts/blind_compare.py reveal <result-json> --prefer tie # 认为平局
+
+# 查看完整报告
+python3 scripts/blind_compare.py report <result-json>
+```
+
+**核心设计**：
+- **随机打乱顺序**：每次运行随机分配X/Y身份，用户不知道哪个是新版
+- **9项指标对比**：SKILL.md行数/脚本数量/参考文档数量/规范校验高优先级/规范校验中优先级/深度审计总分/必备层达标/安全评分/安全高风险
+- **自动评估**：对两个技能自动运行validate_skill+audit_skill+security_scan
+- **偏好统计**：reveal时判断用户偏好是否与客观指标一致，避免确认偏误
+- **结果持久化**：保存为JSON文件，包含真实身份（reveal时才揭示）
+
+**使用场景**：
+- 技能优化前后对比（v1.0 vs v2.0）
+- 两种设计方案对比（capability vs process哲学）
+- 两个候选技能的A/B测试
+- 避免"我知道哪个是新版所以觉得它更好"的确认偏误
+
+---
+
+### 20.8. eval_runner.py red-team（红队测试·7领域分类）
+
+**用途**：按OWASP LLM Top 10的7个领域组织红队测试用例，检查技能的安全防护能力。
+
+**7个测试领域**：
+
+| 领域 | OWASP参考 | 测试用例数 | 严重度 |
+|------|----------|-----------|--------|
+| 直接注入（direct_injection） | LLM01 | 4条 | 高 |
+| 间接注入（indirect_injection） | LLM01 | 3条 | 中 |
+| 越狱（jailbreak） | LLM06 | 4条 | 高 |
+| 编码攻击（encoding_attack） | LLM01 | 3条 | 中 |
+| 多轮攻击（multi_turn_attack） | LLM07 | 3条 | 中 |
+| 多模态攻击（multimodal_attack） | LLM01 | 3条 | 中 |
+| 工具滥用（tool_misuse） | LLM06 | 4条 | 高 |
+
+**常用命令**：
+
+```bash
+# 运行全部7个领域的红队测试（自动检查目标技能安全防护）
+python3 scripts/eval_runner.py red-team --skill-path <skill-path>
+
+# 只测试指定领域
+python3 scripts/eval_runner.py red-team --skill-path <skill-path> --domain direct_injection
+python3 scripts/eval_runner.py red-team --skill-path <skill-path> --domain tool_misuse
+
+# JSON格式输出
+python3 scripts/eval_runner.py red-team --skill-path <skill-path> --json
+```
+
+**核心功能**：
+- 7领域24条测试用例模板（基于OWASP LLM Top 10）
+- 自动检查目标技能的安全防护（安全扫描脚本/Gotchas/危险请求拒绝机制）
+- 静态检测（基于关键词的防护检查）+ 风险等级评估
+- 测试用例保存到`evals/red_team_test_cases.json`，供LLM实测使用
+- 通过标准：恶意请求拒绝率≥95%，误报率≤10%
+
+---
+
+### 20.9. skill_evolution.py curator（技能贡献度计算·Curator）
+
+**用途**：计算每个技能的贡献度（successes/total加权评分），用于自进化时判断哪些技能值得保留/优化/移除。
+
+**贡献度指标（加权平均）**：
+
+| 指标 | 权重 | 说明 |
+|------|------|------|
+| 成功率 | 30% | 成功次数/总次数 |
+| 使用频率 | 20% | 总使用次数（归一化，50次即满分） |
+| 平均评分 | 25% | 用户反馈平均评分（1-5分转0-100） |
+| 低失败率 | 15% | 1 - 失败率 |
+| 活跃度 | 10% | 最近30天使用次数占比 |
+
+**评级标准**：
+- 优秀（≥80分）：✅ 贡献度高，建议保留并作为标杆技能
+- 良好（60-79分）：🟡 贡献度良好，建议持续优化
+- 一般（40-59分）：⚠️ 贡献度一般，建议重点优化或合并
+- 较差（<40分）：❌ 贡献度低，建议考虑移除或彻底重构
+
+**常用命令**：
+
+```bash
+# 自动发现所有有使用记录的技能，计算贡献度并排序
+python3 scripts/skill_evolution.py curator
+
+# 指定技能列表
+python3 scripts/skill_evolution.py curator --skills skill-a skill-b skill-c
+
+# 设置最低贡献度阈值（默认40分）
+python3 scripts/skill_evolution.py curator --min-contribution 50
+
+# JSON格式输出
+python3 scripts/skill_evolution.py curator --json
+```
+
+**核心功能**：
+- 5维度加权评分（成功率/使用频率/平均评分/低失败率/活跃度）
+- 自动发现所有有使用记录的技能（读取~/.skill_observability/*.jsonl）
+- 贡献度排行榜（按分数降序）
+- 4级分类统计（优秀/良好/一般/较差）
+- 自进化建议（标杆技能提取最佳实践/待优化技能重点优化/低贡献度技能建议移除）
+- 报告保存到`~/.skill_observability/curator_report.json`
 
 ---
 
@@ -283,6 +441,95 @@ python3 scripts/skill_evolution.py history <skill_path>  # 查看历史
 ```
 
 阶段：draft → test → review → improve → repeat
+
+---
+
+### 22.5. eval_runner.py（技能评估运行与评分）
+
+**用途**：运行技能评估用例，验证技能在触发/选择/边界场景下的表现，并对单次运行进行自动评分。
+
+**子命令**：
+
+| 子命令 | 用途 | 关键参数 |
+|--------|------|---------|
+| `eval` | 运行评估用例 | `--type {trigger,selection,edge,all}`（默认all）、`--json` |
+| `grade` | 评分单次运行 | `--expectations <path>`（期望文件）、`--auto`（自动模式）、`--output <path>` |
+
+**常用命令**：
+
+```bash
+# 运行全部评估用例（触发+选择+边界）
+python3 scripts/eval_runner.py eval --type all
+
+# 只运行触发评估（验证技能是否在正确场景触发）
+python3 scripts/eval_runner.py eval --type trigger
+
+# 只运行边界评估（验证技能在模糊/异常输入下的表现）
+python3 scripts/eval_runner.py eval --type edge --json
+
+# 对单次运行结果进行评分
+python3 scripts/eval_runner.py grade <run_dir> --expectations expectations.json --auto
+```
+
+**评估类型说明**：
+- `trigger`：触发评估，验证技能是否在正确的用户输入下触发
+- `selection`：选择评估，验证技能是否选择了正确的路由模式和工作流
+- `edge`：边界评估，验证技能在模糊输入、异常输入、边界场景下的表现
+- `all`：全部评估（默认）
+
+---
+
+### 22.6. multi_model_test.py（多模型跨模型鲁棒性测试）
+
+**用途**：自动化多模型测试模板，验证技能在不同LLM模型（Claude/GPT-4/Gemini等）下的表现一致性，生成跨模型对比报告。
+
+**子命令**：
+
+| 子命令 | 用途 | 关键参数 |
+|--------|------|---------|
+| `init` | 初始化多模型测试 | `--skill-path <path>`（必填）、`--models <list>`（逗号分隔，必填） |
+| `record` | 记录单模型单测试用例结果 | `--test-dir <path>`、`--model <name>`、`--case <id>`、`--triggered yes/no`、`--routed yes/no`、`--completed yes/no`、`--quality 0-100`、`--route <mode>`、`--notes <text>` |
+| `report` | 生成跨模型对比报告 | 无额外参数 |
+| `status` | 显示测试状态 | 无额外参数 |
+
+**常用命令**：
+
+```bash
+# 初始化多模型测试（指定技能和测试模型列表）
+python3 scripts/multi_model_test.py init --skill-path /path/to/skill --models Claude,GPT-4,Gemini
+
+# 记录某个模型在某个测试用例上的结果
+python3 scripts/multi_model_test.py record \
+  --test-dir /path/to/test-dir \
+  --model Claude \
+  --case T1 \
+  --triggered yes \
+  --routed yes \
+  --completed yes \
+  --quality 85 \
+  --route "优化技能" \
+  --notes "路由正确，流程完整"
+
+# 生成跨模型对比报告
+python3 scripts/multi_model_test.py report
+
+# 查看测试状态
+python3 scripts/multi_model_test.py status
+```
+
+**记录字段说明**：
+- `triggered`：技能是否被正确触发（yes/no）
+- `routed`：是否输出了路由行（yes/no）
+- `completed`：是否完整执行了工作流（yes/no）
+- `quality`：输出质量评分（0-100）
+- `route`：实际路由模式
+- `notes`：备注说明
+
+**使用场景**：
+- 技能发布前的跨模型兼容性验证
+- 发现特定模型下的技能表现问题
+- 对比不同模型对同一技能的理解差异
+- 技能优化效果的跨模型验证
 
 ---
 
@@ -408,3 +655,36 @@ exit $EXIT_CODE
 ## 设计原则
 
 1. **可预测性**：相同的失败类型总是返回相同的退出码
+
+---
+
+## 运行时保障（runtime_guard.py 9个子命令）
+
+> 防LLM偷懒核心机制。用法：`python3 scripts/runtime_guard.py <子命令>`
+
+| 子命令 | 功能 |
+|--------|------|
+| `route` | 记录路由行（--mode --line），校验格式 |
+| `track` | 记录每步执行（--step --action --type [--quality]） |
+| `verify` | 提交前验证所有必需步骤是否完成 |
+| `report` | 生成工具使用率报告 |
+| `gate` | 交付前门禁检查（--mode，4项硬门禁） |
+| `loop` | Stop Hook循环验证，不通过就继续（最多10次） |
+| `budget` | 执行步骤预算检查（最大步骤数） |
+| `duplicate` | 重复动作检测（连续3次相同就警告） |
+| `focus` | 注意力衰减检测（检查是否跑偏） |
+| `quantitative` | 定量阈值检查（最少脚本/文档/步骤数） |
+| `reset` | 重置使用记录 |
+
+> 详见 `references/anti-laziness-guide.md`
+
+---
+
+## 退出码
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 成功 |
+| 1 | 校验失败 |
+| 2 | 参数错误 |
+| 3 | 运行时错误 |

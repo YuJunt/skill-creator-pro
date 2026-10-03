@@ -214,7 +214,7 @@
 
 - [ ] 技能是否创建在 `workspace/.user_skills` 目录内？
 - [ ] 网站内容收集技能是否默认使用Browser Use？
-- [ ] 是否没有创建README/CHANGELOG等额外文档？
+- [ ] 是否没有创建README/CHANGELOG等额外文档？（**例外**：开发工具类技能自身仓库根目录可保留项目治理文件如CHANGELOG.md/CONTRIBUTING.md，package.sh打包时自动排除，不进入产出的技能包）
 - [ ] 是否遵循了6步迭代流程？
 - [ ] 每个脚本是否都经过实际运行测试？
 - [ ] 是否运行了规范校验和深度审计？

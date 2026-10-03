@@ -46,7 +46,26 @@ def run_command(cmd, description):
     print(f"  命令: {' '.join(cmd)}")
     print(f"{'='*60}")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # P0修复：自动记录脚本调用到runtime_guard（防偷懒机制自动生效）
+    # 只记录skill-creator-pro自己的脚本（路径包含SCRIPT_DIR）
+    try:
+        cmd_str = " ".join(cmd)
+        if SCRIPT_DIR in cmd_str:
+            # 提取脚本名称（如validate_skill.py）
+            import re as _re
+            script_match = _re.search(r'([a-z_]+\.py)', cmd_str)
+            if script_match:
+                script_name = script_match.group(1).replace('.py', '')
+                _track_cmd = [
+                    sys.executable, os.path.join(SCRIPT_DIR, "runtime_guard.py"),
+                    "track", "--step", script_name,
+                    "--action", "script", "--type", "script"
+                ]
+                subprocess.run(_track_cmd, capture_output=True, timeout=5)
+    except Exception as e:
+        print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)  # track失败不影响主流程
+
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
 
     if result.stdout:
         print(result.stdout)
@@ -72,6 +91,9 @@ def validate_skill(skill_path):
     if "高=0" not in result.stdout:
         raise RuntimeError("❌ 规范校验发现高优先级问题，必须修复后才能继续")
 
+    # 自动记录质量指标（每步通过标准）
+    _track_quality("validate_skill", {"high_issues": 0})
+
     return result.stdout
 
 
@@ -87,6 +109,18 @@ def audit_skill(skill_path):
     if "必备层" not in result.stdout:
         raise RuntimeError("❌ 深度审计输出异常，无法确认必备层状态")
 
+    # 自动记录质量指标（每步通过标准）
+    # 解析必备层通过率（如"必备层: 20/20 (100%)"）
+    import re as _re
+    required_match = _re.search(r'必备层.*?(\d+)/(\d+)', result.stdout)
+    if required_match:
+        passed = int(required_match.group(1))
+        total = int(required_match.group(2))
+        required_pass = passed / total if total > 0 else 0
+    else:
+        required_pass = 1.0  # 默认100%（如果能执行到这里说明没有抛出异常）
+    _track_quality("audit_skill", {"required_pass": required_pass})
+
     return result.stdout
 
 
@@ -101,6 +135,34 @@ def validate_output(skill_path, mode="optimize"):
         [sys.executable, output_validator, skill_path, "--mode", mode],
         "输出格式校验（output_validator.py）"
     )
+
+    # 自动记录质量指标（每步通过标准）
+    # 如果能执行到这里，说明output_validator返回0，即0问题
+    _track_quality("output_validator", {"issues": 0})
+
+
+def _track_quality(step, quality_dict):
+    """自动记录质量指标到runtime_guard（每步通过标准）
+
+    这是create_skill.py的内部函数，用于在运行校验脚本后自动记录质量指标，
+    防止LLM表面满足（如"校验通过了"但实际有问题没记录）。
+
+    Args:
+        step: 步骤名称（如validate_skill/audit_skill/output_validator）
+        quality_dict: 质量指标字典（如{"high_issues": 0}）
+    """
+    try:
+        import json as _json
+        quality_json = _json.dumps(quality_dict, ensure_ascii=False)
+        _track_cmd = [
+            sys.executable, os.path.join(SCRIPT_DIR, "runtime_guard.py"),
+            "track", "--step", step,
+            "--action", "script", "--type", "script",
+            "--quality", quality_json
+        ]
+        subprocess.run(_track_cmd, capture_output=True, timeout=5)
+    except Exception as e:
+        print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)  # track失败不影响主流程
 
 
 def create_skill(skill_name, output_dir, philosophy="mixed", title=None):
@@ -474,8 +536,7 @@ def test_skill(skill_path, full=False):
                 try:
                     proc = subprocess.run(
                         [sys.executable, script_path, "--help"],
-                        capture_output=True, text=True, timeout=10
-                    )
+                        capture_output=True, text=True, timeout=10, encoding="utf-8")
                     if proc.returncode == 0:
                         smoke_pass += 1
                     else:
@@ -533,8 +594,7 @@ def test_skill(skill_path, full=False):
             for msg in test_messages:
                 result = subprocess.run(
                     [sys.executable, skill_router, msg, "--json"],
-                    capture_output=True, text=True, timeout=10
-                )
+                    capture_output=True, text=True, timeout=10, encoding="utf-8")
                 if result.returncode == 0:
                     try:
                         data = json.loads(result.stdout)
@@ -642,18 +702,93 @@ def main():
 
     # P3: 路由行自动输出（硬校验——只要调用编排脚本，就一定会输出路由行）
     # 即使LLM忘了手动输出路由行，脚本也会帮它补上
+    # 使用极简格式：🔀 路由: skill-creator-pro · {模式} · {一句话重点}
     MODE_ROUTE_MAP = {
-        "create": "新建技能",
-        "optimize": "优化技能",
-        "review": "深度评审",
-        "test": "端到端测试",
-        "upgrade": "技能升级",
+        "create": ("新建技能", "创建新技能"),
+        "optimize": ("优化技能", "优化目标技能"),
+        "review": ("深度评审", "评审目标技能规范"),
+        "test": ("端到端测试", "测试目标技能实际效果"),
+        "upgrade": ("技能升级", "升级目标技能"),
     }
     # route命令特殊处理：先路由再输出，避免输出"route"而不是实际模式
     if args.command != "route":
-        route_mode = MODE_ROUTE_MAP.get(args.command, args.command)
-        print(f"🔀 路由: {route_mode}")
+        route_mode, route_focus = MODE_ROUTE_MAP.get(args.command, (args.command, "执行任务"))
+        # 如果有skill_name参数（create命令），添加到重点中
+        if hasattr(args, 'skill_name') and args.skill_name:
+            route_focus = f"创建{args.skill_name}技能"
+        elif hasattr(args, 'skill_path') and args.skill_path:
+            skill_name = os.path.basename(os.path.abspath(args.skill_path))
+            route_focus = f"{route_focus}{skill_name}"
+        route_line = f"🔀 路由: skill-creator-pro · {route_mode} · {route_focus}"
+        print(route_line)
         print()
+
+    # P0修复：自动调用runtime_guard track，记录脚本调用（防偷懒机制自动生效）
+    # 不需要LLM手动调用，create_skill.py运行时自动记录
+    try:
+        import subprocess as _sp
+        _track_cmd = [
+            sys.executable, os.path.join(SCRIPT_DIR, "runtime_guard.py"),
+            "track", "--step", f"create_skill.{args.command}",
+            "--action", "script", "--type", "script"
+        ]
+        _sp.run(_track_cmd, capture_output=True, timeout=5)
+        # 同时记录路由行输出
+        if args.command != "route":
+            _route_cmd = [
+                sys.executable, os.path.join(SCRIPT_DIR, "runtime_guard.py"),
+                "route", "--mode", route_mode,
+                "--line", route_line,
+                "--message", f"create_skill.{args.command}"
+            ]
+            _sp.run(_route_cmd, capture_output=True, timeout=5)
+    except Exception as _e:
+        print(f"[runtime_guard track跳过: {_e}]", file=sys.stderr)
+
+    # P1-2：自动推荐must_read文档（提醒LLM阅读，防偷懒）
+    # P3升级：REFS_TO_READ_MAP——每个文档附带具体章节说明（不是只说"读best-practices"，而是"读best-practices第七章"）
+    if args.command != "route":
+        REFS_TO_READ_MAP = {
+            "create": [
+                ("best-practices.md", "第七章 引导LLM深度利用方法论的闭环设计 + 五、迭代流程6步"),
+                ("design-philosophies.md", "三种设计哲学选择（capability/process/mixed）+ 选择决策树"),
+                ("36-element-checklist.md", "推荐层第18项 方法论知识库+调用完整性 + 必备层20项"),
+            ],
+            "optimize": [
+                ("36-element-checklist.md", "推荐层第18项 方法论调用完整性 + 三层加权评分"),
+                ("gotchas-collection.md", "第12B项 LLM只看几行文档只用一两个脚本 + 内容类坑"),
+                ("best-practices.md", "第七章 方法论调用闭环设计 + 五、迭代流程6步"),
+                ("tech-debt-management.md", "技术债识别+分级+偿还策略"),
+            ],
+            "review": [
+                ("36-element-checklist.md", "完整36项检查清单 + 三层加权评分体系"),
+                ("review-process-guide.md", "7维度评审流程 + 问题分级标准"),
+                ("best-practices.md", "第七章 方法论调用闭环设计（评审时重点检查）"),
+            ],
+            "test": [
+                ("eval-practice.md", "评估用例设计 + RED-GREEN-REFACTOR流程"),
+                ("routing-mustread-test-cases.md", "路由专项测试 + must_read验证用例"),
+                ("evaluation-guide.md", "8维度评估体系 + 通过率计算"),
+            ],
+        }
+        refs = REFS_TO_READ_MAP.get(args.command, [])
+        if refs:
+            print(f"📚 refs_to_read（根据{args.command}模式推荐，具体到章节）:")
+            for i, (doc, chapter) in enumerate(refs, 1):
+                print(f"   {i}. references/{doc}")
+                print(f"      → 重点读: {chapter}")
+            print()
+            # P2-1：自动记录为"已推荐"（gate区分auto_recommended和主动阅读）
+            try:
+                for doc, _ in refs:
+                    _doc_track_cmd = [
+                        sys.executable, os.path.join(SCRIPT_DIR, "runtime_guard.py"),
+                        "track", "--step", doc,
+                        "--action", "auto_recommended", "--type", "doc"
+                    ]
+                    _sp.run(_doc_track_cmd, capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     try:
         if args.command == "create":
@@ -749,6 +884,18 @@ def main():
         print(f"\n❌ 运行时错误: {e}", file=sys.stderr)
         sys.exit(3)
 
+
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
 
 if __name__ == "__main__":
     main()

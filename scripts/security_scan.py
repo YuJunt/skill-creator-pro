@@ -240,7 +240,8 @@ class SecurityScanner:
                 "allowed_files": data.get("allowed_files", []),
                 "allowed_patterns": data.get("allowed_patterns", []),
             }
-        except Exception:
+        except Exception as e:
+            print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
             return {"allowed_files": [], "allowed_patterns": []}
 
     def _is_skill_whitelisted(self, rel_path: str, message: str) -> bool:
@@ -496,6 +497,18 @@ def main():
 
     sys.exit(0)
 
+
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
 
 if __name__ == "__main__":
     main()

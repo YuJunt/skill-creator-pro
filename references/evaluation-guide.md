@@ -674,3 +674,28 @@ A/B对比报告：{方案A} vs {方案B}
 
 - v1.0.0：初始版本
 - 最后更新：2026-09-23
+
+---
+
+## eval 用例 JSON 格式示例（evals/evals.json）
+
+> EDD 第0步要求：任何技能创建前先写 eval 用例（至少3个：正常/边界/质量），保存到 `evals/evals.json`。格式如下：
+
+```json
+{
+  "skill_name": "pdf-processing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Extract all text from this PDF file and save it to output.txt",
+      "expected_behavior": ["Successfully reads the PDF file", "Extracts text from all pages", "Saves to output.txt in readable format"],
+      "files": ["test-files/document.pdf"]
+    }
+  ]
+}
+```
+
+**每个 eval 用例必须包含**：`prompt`（用户真实输入）+ `expected_behavior`（期望行为列表）+ `assertions`（可验证的断言）。
+**通过标准**：端到端测试通过率 ≥80% 才能交付；每个用例的断言必须全部通过。
+
+**运行方式**：`python3 scripts/eval_runner.py eval --type all` 执行所有 eval 用例；做 baseline 对比（无技能 vs 有技能），量化技能价值。

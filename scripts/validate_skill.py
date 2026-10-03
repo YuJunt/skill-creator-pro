@@ -264,7 +264,8 @@ def check_runtime_guard(skill_path):
     try:
         with open(runtime_guard_path, "r", encoding="utf-8") as f:
             content = f.read()
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
         return issues
 
     required_features = [
@@ -293,8 +294,8 @@ def check_runtime_guard(skill_path):
                     "item": "SKILL.md",
                     "message": "SKILL.md未提到runtime_guard（建议在Gotchas或工作流中说明如何使用）"
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     return issues
 
@@ -468,6 +469,18 @@ def main():
     if not result["success"]:
         sys.exit(1)
 
+
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
 
 if __name__ == "__main__":
     main()
