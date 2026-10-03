@@ -14,6 +14,8 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONIOENCODING: utf-8   # Windows默认cp1252无法输出emoji(🔀路由等)，统一UTF-8
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
