@@ -285,5 +285,17 @@ def main():
         print("\n" + json.dumps(result, ensure_ascii=False, indent=2))
 
 
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 if __name__ == "__main__":
     main()

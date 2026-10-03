@@ -977,6 +977,17 @@ ORCHESTRATOR_TEMPLATE = '''#!/usr/bin/env python3
   python3 orchestrator.py status
   python3 orchestrator.py reset
 """
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 import argparse
 import json
 import os
@@ -1117,6 +1128,18 @@ def main():
         sys.exit(1)
 
 
+
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 if __name__ == "__main__":
     main()
 '''
@@ -1134,6 +1157,17 @@ VALIDATOR_TEMPLATE = '''#!/usr/bin/env python3
   python3 validator.py --input <结果文件>
   python3 validator.py --input <结果文件> --json
 """
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 import argparse
 import json
 import os
@@ -1259,6 +1293,17 @@ RUNTIME_GUARD_TEMPLATE = '''#!/usr/bin/env python3
   python3 runtime_guard.py verify --required-steps <step1,step2,...>
   python3 runtime_guard.py report
 """
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 import argparse
 import json
 import os
@@ -1636,6 +1681,17 @@ PROCESS_VALIDATOR_TEMPLATE = '''#!/usr/bin/env python3
   python3 validator.py --input <结果文件>
   python3 validator.py --input <结果文件> --json
 """
+# ===== UTF-8 输出兼容（Windows cp1252 无法输出 emoji，统一 UTF-8） =====
+try:
+    import sys as _sys
+    for _s in (_sys.stdout, _sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+except Exception:
+    pass
+
 import argparse
 import json
 import os
