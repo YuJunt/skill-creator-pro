@@ -19,7 +19,10 @@
 import argparse
 import json
 import os
-import resource
+try:
+    import resource  # Unix-only；Windows 上不可用则跳过内存指标
+except ImportError:
+    resource = None
 import subprocess
 import sys
 import time
@@ -62,9 +65,12 @@ def measure_script(script_path, args=None, runs=5, timeout=60):
             end_time = time.perf_counter()
             elapsed = end_time - start_time
 
-            # 获取子进程内存使用（ru_maxrss是KB）
-            usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-            memory_kb = usage.ru_maxrss
+            # 获取子进程内存使用（ru_maxrss是KB）；Windows无resource模块，内存指标记为0
+            if resource is not None:
+                usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+                memory_kb = usage.ru_maxrss
+            else:
+                memory_kb = 0
 
             if proc.returncode == 0:
                 times.append(elapsed)
