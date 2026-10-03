@@ -238,7 +238,7 @@ def _check_script_error_handling(skill_path: str) -> bool:
     has_try = False
     for f in py_files:
         try:
-            with open(os.path.join(scripts_dir, f), 'r') as fh:
+            with open(os.path.join(scripts_dir, f), 'r', encoding="utf-8") as fh:
                 if 'try:' in fh.read():
                     has_try = True
                     break
@@ -263,7 +263,7 @@ def _check_config(skill_path: str) -> bool:
     for f in os.listdir(scripts_dir):
         if f.endswith('.py'):
             try:
-                with open(os.path.join(scripts_dir, f), 'r') as fh:
+                with open(os.path.join(scripts_dir, f), 'r', encoding="utf-8") as fh:
                     content = fh.read()
                     if 'api_key' in content.lower() and '=' in content and 'os.environ' not in content:
                         return False

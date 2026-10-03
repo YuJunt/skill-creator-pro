@@ -40,8 +40,7 @@ def run_command(cmd, description, cwd=None):
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, cwd=cwd or SKILL_ROOT,
-            timeout=120
-        )
+            timeout=120, encoding="utf-8")
         return {
             "name": description,
             "cmd": " ".join(cmd),

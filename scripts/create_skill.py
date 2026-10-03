@@ -65,7 +65,7 @@ def run_command(cmd, description):
     except Exception as e:
         print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)  # track失败不影响主流程
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
 
     if result.stdout:
         print(result.stdout)
@@ -536,8 +536,7 @@ def test_skill(skill_path, full=False):
                 try:
                     proc = subprocess.run(
                         [sys.executable, script_path, "--help"],
-                        capture_output=True, text=True, timeout=10
-                    )
+                        capture_output=True, text=True, timeout=10, encoding="utf-8")
                     if proc.returncode == 0:
                         smoke_pass += 1
                     else:
@@ -595,8 +594,7 @@ def test_skill(skill_path, full=False):
             for msg in test_messages:
                 result = subprocess.run(
                     [sys.executable, skill_router, msg, "--json"],
-                    capture_output=True, text=True, timeout=10
-                )
+                    capture_output=True, text=True, timeout=10, encoding="utf-8")
                 if result.returncode == 0:
                     try:
                         data = json.loads(result.stdout)

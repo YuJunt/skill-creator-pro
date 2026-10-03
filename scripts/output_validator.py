@@ -270,8 +270,7 @@ def check_scripts_runnable(skill_path):
         try:
             result = subprocess.run(
                 [sys.executable, script_path, "--help"],
-                capture_output=True, text=True, timeout=10
-            )
+                capture_output=True, text=True, timeout=10, encoding="utf-8")
             if result.returncode == 0:
                 print(f"  ✅ scripts/{script} 可正常运行")
             else:

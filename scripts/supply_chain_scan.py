@@ -322,7 +322,7 @@ def calculate_file_hash(file_path):
     """计算文件的SHA-256哈希"""
     import hashlib
     try:
-        with open(file_path, "rb") as f:
+        with open(file_path, "rb", encoding="utf-8") as f:
             return hashlib.sha256(f.read()).hexdigest()
     except Exception as e:
         print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)

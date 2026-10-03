@@ -30,7 +30,7 @@ from datetime import datetime
 def run_command(cmd, cwd=None):
     """运行命令并返回结果"""
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=cwd)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=cwd, encoding="utf-8")
         return {
             "returncode": proc.returncode,
             "stdout": proc.stdout or "",
