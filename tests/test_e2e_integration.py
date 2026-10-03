@@ -142,7 +142,7 @@ class TestE2EOrchestrator:
         """测试optimize模式输出路由行（P3硬校验）"""
         result = run_script("create_skill.py", "optimize", created_skill)
         assert result.returncode == 0, f"optimize失败: {result.stdout}\n{result.stderr}"
-        assert "🔀 路由: 优化技能" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 优化技能" in result.stdout
 
     def test_optimize_mode_runs_output_validator(self, created_skill):
         """测试optimize模式调用output_validator（流程完整性）"""
@@ -154,7 +154,7 @@ class TestE2EOrchestrator:
         """测试review模式输出路由行"""
         result = run_script("create_skill.py", "review", created_skill)
         assert result.returncode == 0, f"review失败: {result.stdout}\n{result.stderr}"
-        assert "🔀 路由: 深度评审" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 深度评审" in result.stdout
 
     def test_review_mode_runs_output_validator(self, created_skill):
         """测试review模式调用output_validator"""
@@ -166,14 +166,14 @@ class TestE2EOrchestrator:
         """测试test模式输出路由行"""
         result = run_script("create_skill.py", "test", created_skill)
         assert result.returncode == 0, f"test失败: {result.stdout}\n{result.stderr}"
-        assert "🔀 路由: 端到端测试" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 端到端测试" in result.stdout
 
     def test_create_mode_outputs_routing(self, temp_skill_dir):
         """测试create模式输出路由行"""
         skill_dir, tmpdir = temp_skill_dir
         result = run_script("create_skill.py", "create", "e2e-create-test", "--path", tmpdir, "--philosophy", "mixed")
         assert result.returncode == 0, f"create失败: {result.stdout}\n{result.stderr}"
-        assert "🔀 路由: 新建技能" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 新建技能" in result.stdout
 
     def test_invalid_mode_fails(self):
         """测试无效模式报错"""
@@ -211,18 +211,18 @@ class TestE2EFullLifecycle:
         # 步骤4：优化（编排脚本）
         result = run_script("create_skill.py", "optimize", skill_path)
         assert result.returncode == 0, f"优化失败: {result.stdout}"
-        assert "🔀 路由: 优化技能" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 优化技能" in result.stdout
         assert "输出格式校验" in result.stdout
 
         # 步骤5：评审（编排脚本）
         result = run_script("create_skill.py", "review", skill_path)
         assert result.returncode == 0, f"评审失败: {result.stdout}"
-        assert "🔀 路由: 深度评审" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 深度评审" in result.stdout
 
         # 步骤6：测试（编排脚本）
         result = run_script("create_skill.py", "test", skill_path)
         assert result.returncode == 0, f"测试失败: {result.stdout}"
-        assert "🔀 路由: 端到端测试" in result.stdout
+        assert "🔀 路由: skill-creator-pro · 端到端测试" in result.stdout
 
         # 步骤7：输出校验
         result = run_script("output_validator.py", skill_path, "--mode", "test")
@@ -233,9 +233,9 @@ class TestE2ERoutingP3:
     """测试6：P3路由行硬校验（所有模式都必须输出路由行）"""
 
     @pytest.mark.parametrize("mode,expected_routing", [
-        ("optimize", "🔀 路由: 优化技能"),
-        ("review", "🔀 路由: 深度评审"),
-        ("test", "🔀 路由: 端到端测试"),
+        ("optimize", "🔀 路由: skill-creator-pro · 优化技能"),
+        ("review", "🔀 路由: skill-creator-pro · 深度评审"),
+        ("test", "🔀 路由: skill-creator-pro · 端到端测试"),
     ])
     def test_all_modes_output_routing(self, created_skill, mode, expected_routing):
         """测试所有模式都输出正确的路由行"""

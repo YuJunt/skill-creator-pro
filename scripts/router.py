@@ -502,6 +502,10 @@ def main():
         print(f"\n🎯 模式: {decision.mode}")
         mode_name = MODES.get(decision.mode, {}).get("name", decision.mode)
         print(f"   ({mode_name})")
+        # 建议路由行（结构化格式：技能名 · 模式 · target/scope/reason）
+        print(f"\n✅ 建议路由行: 🔀 路由: skill-creator-pro · {mode_name} · target=<目标技能>; scope=full; reason=<一句话>")
+        print(f"   示例: 🔀 路由: skill-creator-pro · {mode_name} · target=my-skill; scope=full; reason=目标技能规范审计")
+        print(f"   字段说明: target(必填)=目标技能目录名, scope(可选)=full/doc/script/config, reason(必填)=一句话说明")
         print(f"\n📊 置信度: {decision.confidence}")
         print(f"\n💡 理由: {decision.reasoning}")
 

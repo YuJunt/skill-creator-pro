@@ -387,6 +387,112 @@ def show_loop_history(skill_path):
 # 主入口
 # ============================================================
 
+# ============================================================
+# Curator（技能贡献度计算）—— 自进化时判断哪些技能值得保留
+# ============================================================
+
+def calculate_skill_contribution(skill_name, logs=None):
+    """计算单个技能的贡献度（加权平均）"""
+    if logs is None:
+        logs = read_logs(skill_name)
+    
+    if not logs:
+        return {"skill": skill_name, "contribution_score": 0, "grade": "无数据",
+                "total_uses": 0, "success_rate": 0, "recommendation": "无使用记录，建议实测后再评估"}
+    
+    total = len(logs)
+    success = sum(1 for l in logs if l.get("result") == "success")
+    fail = total - success
+    success_rate = round(success / total * 100, 1) if total > 0 else 0
+    failure_rate = round(fail / total * 100, 1) if total > 0 else 0
+    
+    # 平均评分
+    feedbacks = [l for l in logs if l.get("action") == "user_feedback"]
+    avg_rating = 0
+    if feedbacks:
+        ratings = []
+        for fb in feedbacks:
+            detail = fb.get("detail", "")
+            if "rating=" in detail:
+                try:
+                    ratings.append(int(detail.split("rating=")[1].split(":")[0]))
+                except (ValueError, IndexError):
+                    pass
+        avg_rating = round(sum(ratings) / len(ratings) * 20, 1) if ratings else 0
+    
+    # 最近30天活跃度
+    from datetime import datetime, timedelta
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).isoformat()
+    recent_logs = [l for l in logs if l.get("timestamp", "") >= thirty_days_ago]
+    recent_activity = round(len(recent_logs) / total * 100, 1) if total > 0 else 0
+    
+    # 使用频率归一化（50次即满分）
+    usage_frequency = min(total * 2, 100)
+    
+    # 加权计算贡献度
+    contribution_score = round(
+        success_rate * 0.30 + usage_frequency * 0.20 + avg_rating * 0.25 +
+        (100 - failure_rate) * 0.15 + recent_activity * 0.10, 1)
+    
+    # 评级
+    if contribution_score >= 80:
+        grade, recommendation = "优秀", "✅ 贡献度高，建议保留并作为标杆技能"
+    elif contribution_score >= 60:
+        grade, recommendation = "良好", "🟡 贡献度良好，建议持续优化"
+    elif contribution_score >= 40:
+        grade, recommendation = "一般", "⚠️ 贡献度一般，建议重点优化或合并"
+    else:
+        grade, recommendation = "较差", "❌ 贡献度低，建议考虑移除或彻底重构"
+    
+    return {"skill": skill_name, "contribution_score": contribution_score, "grade": grade,
+            "total_uses": total, "success_rate": success_rate, "failure_rate": failure_rate,
+            "avg_rating": avg_rating, "recent_activity": recent_activity, "recommendation": recommendation}
+
+
+def run_curator(skill_names=None, min_contribution=40):
+    """运行Curator，计算所有技能的贡献度并排序"""
+    print("\n" + "=" * 70)
+    print("🏛️  Curator（技能贡献度计算）—— 自进化时判断哪些技能值得保留")
+    print("=" * 70)
+    
+    if skill_names is None:
+        log_dir = get_log_dir()
+        skill_names = [f.replace(".jsonl", "") for f in os.listdir(log_dir) if f.endswith(".jsonl")] if os.path.isdir(log_dir) else []
+    
+    if not skill_names:
+        print("\n⚠️  没有找到任何技能的使用记录，请先使用技能积累记录")
+        return {"skills": [], "recommendation": "无数据"}
+    
+    print(f"\n📊 评估技能数量: {len(skill_names)}个，最低贡献度阈值: {min_contribution}分")
+    
+    results = sorted([calculate_skill_contribution(s) for s in skill_names],
+                     key=lambda x: x["contribution_score"], reverse=True)
+    
+    print(f"\n{'排名':<6} {'技能名':<25} {'贡献度':<8} {'评级':<8} {'成功率':<8} {'使用次数':<8}")
+    print("-" * 70)
+    for i, r in enumerate(results, 1):
+        print(f"{i:<6} {r['skill']:<25} {r['contribution_score']:<8} {r['grade']:<8} {r['success_rate']:<8} {r['total_uses']:<8}")
+    
+    excellent = [r for r in results if r["contribution_score"] >= 80]
+    good = [r for r in results if 60 <= r["contribution_score"] < 80]
+    average = [r for r in results if 40 <= r["contribution_score"] < 60]
+    poor = [r for r in results if r["contribution_score"] < 40]
+    
+    print(f"\n📊 分类: 优秀{len(excellent)} / 良好{len(good)} / 一般{len(average)} / 较差{len(poor)}")
+    
+    if poor:
+        print(f"❌ 建议移除/重构: {', '.join(r['skill'] for r in poor)}")
+    if excellent:
+        print(f"✅ 标杆技能: {', '.join(r['skill'] for r in excellent)}")
+    
+    output_file = os.path.join(get_log_dir(), "curator_report.json")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump({"generated_at": datetime.now().isoformat(), "total_skills": len(results),
+                   "rankings": results}, f, ensure_ascii=False, indent=2)
+    print(f"\n💾 Curator报告已保存: {output_file}")
+    return {"total_skills": len(results), "rankings": results, "output_file": output_file}
+
+
 def main():
     parser = argparse.ArgumentParser(description="技能自进化工具（可观测性+反馈循环）")
     sub = parser.add_subparsers(dest="command")
@@ -414,6 +520,12 @@ def main():
     eg_p.add_argument("skill_name")
 
     sub.add_parser("stats", help="全局统计")
+
+    # Curator子命令（技能贡献度计算）
+    curator_p = sub.add_parser("curator", help="Curator技能贡献度计算（自进化时判断哪些技能值得保留）")
+    curator_p.add_argument("--skills", nargs="*", help="指定技能列表（默认自动发现所有有日志的技能）")
+    curator_p.add_argument("--min-contribution", type=int, default=40, help="最低贡献度阈值（默认40分）")
+    curator_p.add_argument("--json", action="store_true", help="JSON格式输出")
 
     # --- 反馈循环子命令 ---
     loop_init = sub.add_parser("loop-init", help="初始化反馈循环")
@@ -457,6 +569,10 @@ def main():
         cmd_improve(args.skill_name)
     elif args.command == "extract-gotchas":
         cmd_extract_gotchas(args.skill_name)
+    elif args.command == "curator":
+        result = run_curator(skill_names=args.skills, min_contribution=args.min_contribution)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
 
     # 反馈循环命令
     elif args.command == "loop-init":

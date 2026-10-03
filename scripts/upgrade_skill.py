@@ -85,8 +85,8 @@ def analyze_gap(skill_path: str) -> GapAnalysis:
         try:
             with open(skill_md_path, 'r', encoding='utf-8', errors='replace') as f:
                 skill_md_content = f.read()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     # 提取技能名称
     for line in skill_md_content.split('\n'):
@@ -145,7 +145,8 @@ def analyze_gap(skill_path: str) -> GapAnalysis:
         analysis.total_checks += 1
         try:
             result = check_fn()
-        except Exception:
+        except Exception as e:
+            print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
             result = False
 
         if result is True:
@@ -241,8 +242,8 @@ def _check_script_error_handling(skill_path: str) -> bool:
                 if 'try:' in fh.read():
                     has_try = True
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     return has_try
 
 
@@ -266,8 +267,8 @@ def _check_config(skill_path: str) -> bool:
                     content = fh.read()
                     if 'api_key' in content.lower() and '=' in content and 'os.environ' not in content:
                         return False
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
     return has_config or "partial"
 
 

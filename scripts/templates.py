@@ -82,9 +82,24 @@ description: >
 ### ⚠️ 强制执行规则
 
 1. **无路由的输出视为无效**：任何输出前必须先输出路由声明
-2. **必须运行编排脚本**：完整模式必须运行 `python3 scripts/orchestrator.py run`，按顺序执行所有阶段
-3. **必须运行输出校验**：最终输出前必须运行 `python3 scripts/validator.py --input <结果文件>`
-4. **校验失败不允许继续**：校验失败时必须修复问题后重新运行，不允许绕过
+2. **路由行必须通过硬验证**：输出路由行后运行 `python3 scripts/runtime_guard.py route --mode "{{模式}}" --line "🔀 路由: {{模式}}｜任务: {{简述}}｜管道: {{几段}}｜原因: {{一句话}}"` 记录并校验格式；交付前必须运行 `python3 scripts/runtime_guard.py gate --mode {{模式}}` 检查路由/脚本/文档4项门禁，不通过不能交付
+3. **必须运行编排脚本**：完整模式必须运行 `python3 scripts/orchestrator.py run`，按顺序执行所有阶段
+4. **必须运行输出校验**：最终输出前必须运行 `python3 scripts/validator.py --input <结果文件>`
+5. **校验失败不允许继续**：校验失败时必须修复问题后重新运行，不允许绕过
+
+### 🧱 结构化字段设计原则
+
+> 路由行与输出中的结构化字段用于传递决策信息，必须遵循统一命名，禁止模糊值。
+
+| 字段 | 用途 | 示例 |
+|------|------|------|
+| `target=` | 目标对象（技能/文件/目录） | `target=report.pdf` |
+| `period=` | 时间范围（日期/周期） | `period=2026-Q3` |
+| `scope=` | 操作范围 | `scope=chapter-3` |
+| `reason=` | 决策原因（一句话） | `reason=数据不完整需补充` |
+
+- 多个字段用 `; ` 分隔，值为具体内容，禁止"待定""随便"等模糊值
+- 结构化字段用于 `runtime_guard.py` 的格式校验和追溯，字段名不可随意更改
 
 ---
 
@@ -163,6 +178,55 @@ description: >
 - 错误信息必须明确指出问题和修复建议
 - 有降级机制：主路径失败时，有备选方案
 - SKILL.md中说明常见错误和处理方法
+
+---
+
+## 🧭 决策树与候选输出（多选项决策机制）
+
+> **核心**：多选项对比时，LLM输出评分表+候选列表，不直接下结论。
+
+**评分对比格式**：
+| 选项 | 评分维度1 | 评分维度2 | 总分 | 结论 |
+|------|----------|----------|------|------|
+| 方案A | 8 | 7 | 15 | 候选1 |
+| 方案B | 6 | 6 | 12 | 候选2 |
+
+**规则**：
+- 每个选项必须有评分依据，不允许凭感觉
+- 输出top N候选，LLM只做最终选择
+- 评分维度必须与任务目标相关
+
+---
+
+## ♻️ 自进化闭环（可观测性+人在环改进，真实运行机制）
+
+> **核心**：任务完成后**建议**运行 `python3 scripts/evolution.py log --result <success|fail> --note "..."` 记录结果（低成本可观测性）；有失败教训/有效经验时运行 `python3 scripts/evolution.py extract-gotchas --title "坑名" --symptom "症状" --fix "修正"` 提取，**必须人工确认后**才追加进 Gotchas。技能越用越准，但改进走定期复盘（非每轮强制）。
+
+**闭环流程**：
+1. **实战**：执行任务，记录过程与结果
+2. **复盘**：对比预期vs实际，找出偏差原因（不允许"继续努力"式空复盘）
+3. **沉淀**：`evolution.py log` 记录结果（可观测性）；教训/经验用 `extract-gotchas` 提取，**人工确认**后追加进 `references/gotchas-collection.md`
+4. **下批参考**：下次任务开始前，先读 `references/gotchas-collection.md` 作为参考
+
+**规则**（依据业界模式：Anthropic/Warp = 可观测性+人在环，非每轮强制）：
+- 任务完成后**建议**记录 log；改进走定期复盘，不是每次任务都改技能
+- `extract-gotchas` 提取的经验**必须人工确认**后再追加（人控制技能实际改了什么）
+- 经验必须有具体内容（什么场景/什么做法/什么结果），禁止空话
+
+---
+
+## 🔒 安全考虑（最小权限/数据安全/输入校验/无硬编码凭据）
+
+> **核心**：技能必须内置安全基线，防止凭据泄露、数据污染、异常输入。
+
+**安全清单**：
+- [ ] 凭据不硬编码：API key/token用环境变量或配置文件，禁止写入脚本
+- [ ] 输入校验：外部输入必须校验类型/范围/格式，防止异常数据
+- [ ] 最小权限：只读取完成任务所需的数据，不越权访问
+- [ ] 数据安全：敏感数据脱敏处理，日志不打印凭据
+- [ ] 错误处理不泄露：异常信息不包含凭据或内部路径
+
+**禁止**：硬编码真实凭据、打印token/key、把敏感数据写入输出。
 
 ---
 
@@ -489,9 +553,48 @@ python3 main.py history --limit 10
 
 ---
 
+## 🧭 决策树与候选输出（多选项决策机制）
+
+> **核心**：多选项对比时，LLM输出评分表+候选列表，不直接下结论。
+
+**评分对比格式**：
+| 选项 | 评分维度1 | 评分维度2 | 总分 | 结论 |
+|------|----------|----------|------|------|
+| 方案A | 8 | 7 | 15 | 候选1 |
+| 方案B | 6 | 6 | 12 | 候选2 |
+
+**规则**：每个选项必须有评分依据；输出top N候选，LLM只做最终选择；评分维度必须与任务目标相关。
+
+---
+
+## ♻️ 自进化闭环（可观测性+人在环改进，真实运行机制）
+
+> **核心**：任务完成后**建议**运行 `python3 scripts/evolution.py log --result <success|fail> --note "..."`；有教训时 `python3 scripts/evolution.py extract-gotchas --title "..." --symptom "..." --fix "..."` 提取，**人工确认后**追加进 Gotchas。
+
+**闭环流程**：实战→复盘（对比预期vs实际）→沉淀（evolution.py log 记录 + extract-gotchas 提取，人工确认后追加）→下批参考（下次开始前读 `references/gotchas-collection.md`）。
+
+**规则**（可观测性+人在环，非每轮强制）：任务完成后建议 log；改进走定期复盘；extract-gotchas 必须人工确认后追加；禁止空复盘。
+
+---
+
+## 🔒 安全考虑（最小权限/数据安全/输入校验/无硬编码凭据）
+
+> **核心**：技能必须内置安全基线，防止凭据泄露、数据污染、异常输入。
+
+**安全清单**：
+- [ ] 凭据不硬编码：API key/token用环境变量或配置文件，禁止写入脚本
+- [ ] 输入校验：外部输入必须校验类型/范围/格式，防止异常数据
+- [ ] 最小权限：只读取完成任务所需的数据，不越权访问
+- [ ] 数据安全：敏感数据脱敏处理，日志不打印凭据
+- [ ] 错误处理不泄露：异常信息不包含凭据或内部路径
+
+**禁止**：硬编码真实凭据、打印token/key、把敏感数据写入输出。
+
+---
+
 ## 运行时保障（防偷懒）
 
-> 使用 `runtime_guard.py` 监控执行过程，确保不跳步、不偷懒。
+> 使用 `runtime_guard.py` 监控执行过程，确保不跳步、不偷懒。多命令组合操作按 **pipeline 编排**（preview→run→history→undo），不允许跳步。
 
 ```bash
 # 记录每步执行
@@ -566,6 +669,8 @@ python3 runtime_guard.py report
 | 发现问题后 | 修复是否生效 | 重新执行命令，确认错误已解决 |
 
 **禁止**: 不验证就交付、验证不通过就继续、发现问题不修复。
+
+**交付前必须做端到端实测**：真实跑通完整流程（preview→run→history→undo），不是单元测试。
 
 ---
 
@@ -676,12 +781,13 @@ python3 scripts/orchestrator.py reset
 - **通过标准**: 【明确的完成标准】
 
 ### Step 4: 验证与修正（必须执行）
-- **做什么**: 验证输出质量，发现问题则修正
+- **做什么**: 验证输出质量，发现问题则修正；交付前必须做**端到端实测**（真实跑通完整流程，不是单元测试）
 - **检查清单**:
   - [ ] 输出是否符合格式模板？
   - [ ] 所有检查项是否都完成？
   - [ ] 有没有遗漏的步骤？
   - [ ] 风险提示是否包含？
+  - [ ] 端到端实测是否通过？
 - **不通过则回到对应步骤修正**
 
 ---
@@ -728,6 +834,45 @@ python3 scripts/validator.py --input <结果文件> --json
 - 错误信息必须明确指出问题和修复建议
 - 有降级机制：主路径失败时，有备选方案
 - 不静默失败：遇到错误必须明确告知用户
+
+---
+
+## 🧭 决策树与候选输出（多选项决策机制）
+
+> **核心**：多选项对比时，LLM输出评分表+候选列表，不直接下结论。
+
+**评分对比格式**：
+| 选项 | 评分维度1 | 评分维度2 | 总分 | 结论 |
+|------|----------|----------|------|------|
+| 方案A | 8 | 7 | 15 | 候选1 |
+| 方案B | 6 | 6 | 12 | 候选2 |
+
+**规则**：每个选项必须有评分依据；输出top N候选，LLM只做最终选择；评分维度必须与任务目标相关。
+
+---
+
+## ♻️ 自进化闭环（可观测性+人在环改进，真实运行机制）
+
+> **核心**：任务完成后**建议**运行 `python3 scripts/evolution.py log --result <success|fail> --note "..."`；有教训时 `python3 scripts/evolution.py extract-gotchas --title "..." --symptom "..." --fix "..."` 提取，**人工确认后**追加进 Gotchas。
+
+**闭环流程**：实战→复盘（对比预期vs实际）→沉淀（evolution.py log 记录 + extract-gotchas 提取，人工确认后追加）→下批参考（下次开始前读 `references/gotchas-collection.md`）。
+
+**规则**（可观测性+人在环，非每轮强制）：任务完成后建议 log；改进走定期复盘；extract-gotchas 必须人工确认后追加；禁止空复盘。
+
+---
+
+## 🔒 安全考虑（最小权限/数据安全/输入校验/无硬编码凭据）
+
+> **核心**：技能必须内置安全基线，防止凭据泄露、数据污染、异常输入。
+
+**安全清单**：
+- [ ] 凭据不硬编码：API key/token用环境变量或配置文件，禁止写入脚本
+- [ ] 输入校验：外部输入必须校验类型/范围/格式，防止异常数据
+- [ ] 最小权限：只读取完成任务所需的数据，不越权访问
+- [ ] 数据安全：敏感数据脱敏处理，日志不打印凭据
+- [ ] 错误处理不泄露：异常信息不包含凭据或内部路径
+
+**禁止**：硬编码真实凭据、打印token/key、把敏感数据写入输出。
 
 ---
 
@@ -1650,6 +1795,43 @@ CHECKLIST_TEMPLATE = '''# {skill_title} 检查清单
 # 通用示例模板
 # ============================================================
 
+TOOL_GUIDE_TEMPLATE = '''# {skill_title} 工具使用指南
+
+> 本技能核心工具的操作方法论。触发后按需阅读，指导工具的正确使用方式。
+
+## 一、核心工具
+
+| 工具/命令 | 用途 | 何时使用 |
+|-----------|------|---------|
+| 【命令1】 | 【核心用途】 | 【场景描述】 |
+| 【命令2】 | 【辅助用途】 | 【场景描述】 |
+
+## 二、操作决策树
+
+```
+输入请求 → 判断操作类型 → 选择命令 → preview预览 → 用户确认 → 执行 → 验证 → 交付
+```
+
+## 三、使用规则（必须遵守）
+
+1. **先预览后执行**：任何修改操作必须先 preview，让用户确认后再执行
+2. **执行后必须验证**：验证输出符合预期，发现问题立即修正
+3. **错误处理**：出错时读取错误信息，按 Gotchas 中的方法处理
+4. **安全基线**：凭据用环境变量，输入做校验，不越权访问
+5. **任务完成后复盘**：沉淀经验到 `references/experience/`，供下次参考
+
+## 四、常见场景速查
+
+| 场景 | 推荐命令组合 | 说明 |
+|------|-------------|------|
+| 【场景1】 | 【命令组合】 | 【说明】 |
+| 【场景2】 | 【命令组合】 | 【说明】 |
+
+---
+
+*本指南随技能迭代更新，发现新用法请补充。*
+'''
+
 EXAMPLE_USAGE_TEMPLATE = '''# {skill_title} 使用示例
 
 > 完整使用示例，照着做。
@@ -2149,3 +2331,99 @@ EVALUATION_CASES_TEMPLATE = '''# {skill_title} 评估用例
 # Capability 模式核心工具脚本
 # ============================================================
 
+
+
+# ============================================================
+# 自进化闭环脚本（evolution.py）——所有哲学共用
+# 产物自包含：log记录执行结果 + extract-gotchas沉淀经验（人工确认），不依赖外部工具
+# ============================================================
+EVOLUTION_SCRIPT_TEMPLATE = '''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+自进化闭环脚本（evolution.py）
+
+技能越用越准。任务完成后调用（见 SKILL.md 自进化闭环章节）：
+  1. log：记录本轮执行结果（success/fail + 备注）——低成本可观测性
+  2. extract-gotchas：把失败教训/有效经验追加进 references/gotchas-collection.md（须人工确认）
+
+用法：
+  python3 scripts/evolution.py log --result success --note "本次正常完成"
+  python3 scripts/evolution.py extract-gotchas --title "坑名" --symptom "症状" --fix "修正"
+
+产出：
+  data/evolution_log.json（执行日志，跨会话保留）
+  references/gotchas-collection.md（经验沉淀，越用越准的核心）
+"""
+import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = SKILL_DIR / "data"
+LOG_FILE = DATA_DIR / "evolution_log.json"
+GOTCHAS_FILE = SKILL_DIR / "references" / "gotchas-collection.md"
+
+
+def _load_log():
+    if LOG_FILE.exists():
+        try:
+            return json.loads(LOG_FILE.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"⚠️ 日志读取失败，重新开始: {e}")
+            return []
+    return []
+
+
+def _save_log(records):
+    DATA_DIR.mkdir(exist_ok=True)
+    LOG_FILE.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def cmd_log(args):
+    records = _load_log()
+    records.append({
+        "time": datetime.now().isoformat(),
+        "result": args.result,
+        "note": args.note or "",
+    })
+    _save_log(records)
+    print(f"✅ 已记录第 {len(records)} 条执行日志: {args.result} | {args.note or ''}")
+    print(f"   日志文件: {LOG_FILE}")
+
+
+def cmd_extract_gotchas(args):
+    GOTCHAS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    content = ""
+    if GOTCHAS_FILE.exists():
+        content = GOTCHAS_FILE.read_text(encoding="utf-8")
+    if not content.strip():
+        content = "# 技能常见坑集合（Gotchas Collection）\\n\\n> 实战沉淀的经验与教训，每项含症状+修正+原因\\n\\n---\\n"
+    entry = f"\\n### {{args.title}}\\n- **症状**：{{args.symptom}}\\n- **修正**：{{args.fix}}\\n- **来源**：实战复盘（{{datetime.now().strftime('%Y-%m-%d')}}）\\n"
+    GOTCHAS_FILE.write_text(content + entry, encoding="utf-8")
+    print(f"✅ 经验已追加进 gotchas-collection.md: {args.title}")
+    print(f"   文件: {GOTCHAS_FILE}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="自进化闭环脚本（log + extract-gotchas）")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_log = sub.add_parser("log", help="记录本轮执行结果")
+    p_log.add_argument("--result", required=True, choices=["success", "fail"], help="success 或 fail")
+    p_log.add_argument("--note", default="", help="本轮备注（做了什么/结果如何）")
+    p_log.set_defaults(func=cmd_log)
+
+    p_ext = sub.add_parser("extract-gotchas", help="把失败教训/有效经验沉淀进 Gotchas")
+    p_ext.add_argument("--title", required=True, help="坑/经验名称")
+    p_ext.add_argument("--symptom", required=True, help="症状：出什么问题")
+    p_ext.add_argument("--fix", required=True, help="修正：怎么解决")
+    p_ext.set_defaults(func=cmd_extract_gotchas)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
+'''

@@ -79,7 +79,8 @@ def detect_skill_type(skill_path):
             if keyword in frontmatter:
                 return "domain"
         return "general"
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
         return "general"
 
 
@@ -281,8 +282,8 @@ def check_scripts_runnable(skill_path):
                     print(f"  ✅ scripts/{script} 语法正确（不支持--help）")
                 except py_compile.PyCompileError:
                     issues.append(f"❌ scripts/{script} 语法错误")
-                except Exception:
-                    issues.append(f"❌ scripts/{script} 运行失败或语法错误")
+                except Exception as e:
+                    issues.append(f"❌ scripts/{script} 运行失败或语法错误: {e}")
         except subprocess.TimeoutExpired:
             warnings.append(f"  ⚠️  scripts/{script} 运行超时（可能需要输入参数）")
         except Exception as e:
@@ -328,8 +329,8 @@ def check_domain_specific_residue(skill_path, skill_type="auto"):
                             # 统计出现次数
                             count = content.count(keyword)
                             residue_found.append((file_path, keyword, count))
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️ 容错跳过: {e}", file=sys.stderr)
 
     if residue_found:
         # 按文件分组
@@ -445,6 +446,37 @@ def check_routing_completeness(skill_path):
         warnings.append("⚠️ 缺少模糊请求处理（用户请求不明确时应该询问澄清）")
     else:
         print("  ✅ 有模糊请求处理")
+
+    # 检查5：模板路由配置检查（仅对skill-creator-pro自身，检查templates.py中的模板是否包含完整路由配置）
+    skill_name = os.path.basename(skill_path)
+    if skill_name == "skill-creator-pro":
+        templates_py = os.path.join(skill_path, "scripts", "templates.py")
+        if os.path.isfile(templates_py):
+            with open(templates_py, "r", encoding="utf-8") as f:
+                templates_content = f.read()
+
+            # 检查模板中是否包含路由前缀
+            template_has_route_prefix = "🔀 路由:" in templates_content
+            if not template_has_route_prefix:
+                issues.append("❌ templates.py的模板缺少路由前缀（🔀 路由:），生成的技能将没有触发路由")
+            else:
+                print("  ✅ 模板包含路由前缀")
+
+            # 检查模板中是否包含runtime_guard使用说明
+            template_has_runtime_guard = "runtime_guard.py route" in templates_content or "runtime_guard.py gate" in templates_content
+            if not template_has_runtime_guard:
+                warnings.append("⚠️ templates.py的模板缺少runtime_guard使用说明，生成的技能将没有路由行硬验证")
+            else:
+                print("  ✅ 模板包含runtime_guard使用说明")
+
+            # 检查模板中是否包含结构化字段
+            template_has_structured = "结构化字段" in templates_content or "target=" in templates_content or "period=" in templates_content
+            if not template_has_structured:
+                warnings.append("⚠️ templates.py的模板缺少结构化字段说明，建议增加结构化字段设计原则")
+            else:
+                print("  ✅ 模板包含结构化字段说明")
+        else:
+            warnings.append("⚠️ 未找到templates.py，无法检查模板路由配置")
 
     return issues, warnings
 
@@ -618,18 +650,153 @@ def validate_output(skill_path, mode="optimize", skill_type="auto"):
         return True
 
 
+def check_routing_consistency(parent_dir):
+    """
+    多技能路由一致性检查：扫描指定目录下的所有技能，检查路由格式是否统一。
+    统一格式：🔀 路由: {技能名} · {模式} · {结构化字段}; reason={一句话}
+    """
+    print("\n" + "=" * 70)
+    print("🔀 多技能路由一致性检查")
+    print("=" * 70)
+    print(f"扫描目录: {parent_dir}")
+    print()
+
+    # 扫描所有技能（包含SKILL.md的子目录）
+    skills = []
+    for item in sorted(os.listdir(parent_dir)):
+        item_path = os.path.join(parent_dir, item)
+        if os.path.isdir(item_path):
+            skill_md = os.path.join(item_path, "SKILL.md")
+            if os.path.isfile(skill_md):
+                skills.append((item, skill_md))
+
+    if not skills:
+        print("❌ 未找到任何技能目录")
+        return False
+
+    print(f"找到 {len(skills)} 个技能:")
+    for name, _ in skills:
+        print(f"  - {name}")
+    print()
+
+    # 提取每个技能的路由格式
+    routing_info = []
+    for name, skill_md in skills:
+        with open(skill_md, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        info = {
+            "name": name,
+            "has_route_prefix": "🔀 路由:" in content,
+            "has_skill_name_in_route": False,
+            "has_structured_fields": False,
+            "has_runtime_guard_route": "runtime_guard.py route" in content,
+            "route_format": "unknown",
+        }
+
+        # 提取路由行格式
+        import re
+        route_match = re.search(r'🔀 路由:\s*([^\n`]+)', content)
+        if route_match:
+            route_line = route_match.group(1).strip()
+            info["route_line"] = route_line
+
+            # 检查是否包含技能名
+            if name in route_line:
+                info["has_skill_name_in_route"] = True
+
+            # 检查是否包含结构化字段（包含=或;）
+            if "=" in route_line or ";" in route_line:
+                info["has_structured_fields"] = True
+
+            # 判断路由格式类型
+            if "·" in route_line and name in route_line:
+                info["route_format"] = "standard"  # 标准格式
+            elif "·" in route_line:
+                info["route_format"] = "no_skill_name"  # 有分隔符但没有技能名
+            elif route_line.startswith("ROUTE"):
+                info["route_format"] = "old_route"  # 旧格式
+            else:
+                info["route_format"] = "simple"  # 简单格式
+
+        routing_info.append(info)
+
+    # 输出每个技能的路由信息
+    print("-" * 70)
+    print(f"{'技能名':<25} {'路由前缀':<8} {'技能名':<8} {'结构化':<8} {'runtime_guard':<12} {'格式类型':<15}")
+    print("-" * 70)
+
+    standard_count = 0
+    for info in routing_info:
+        prefix_icon = "✅" if info["has_route_prefix"] else "❌"
+        name_icon = "✅" if info["has_skill_name_in_route"] else "❌"
+        struct_icon = "✅" if info["has_structured_fields"] else "❌"
+        guard_icon = "✅" if info["has_runtime_guard_route"] else "❌"
+
+        if info["route_format"] == "standard":
+            standard_count += 1
+            format_label = "✅ 标准格式"
+        elif info["route_format"] == "no_skill_name":
+            format_label = "⚠️ 缺技能名"
+        elif info["route_format"] == "old_route":
+            format_label = "⚠️ 旧格式"
+        elif info["route_format"] == "simple":
+            format_label = "⚠️ 简单格式"
+        else:
+            format_label = "❌ 无路由"
+
+        print(f"{info['name']:<25} {prefix_icon:<8} {name_icon:<8} {struct_icon:<8} {guard_icon:<12} {format_label:<15}")
+
+    print("-" * 70)
+    print()
+
+    # 统计和结论
+    total = len(routing_info)
+    standard_pct = standard_count / total * 100 if total > 0 else 0
+
+    print(f"📊 统计:")
+    print(f"  总技能数: {total}")
+    print(f"  标准格式: {standard_count} ({standard_pct:.0f}%)")
+    print(f"  非标准格式: {total - standard_count} ({100 - standard_pct:.0f}%)")
+    print()
+
+    if standard_count == total:
+        print("✅ 所有技能路由格式统一，符合标准格式")
+        return True
+    else:
+        print("❌ 存在非标准格式的技能，建议统一为标准格式：")
+        print("   🔀 路由: {技能名} · {模式} · {结构化字段}; reason={一句话}")
+        print()
+        print("需要修复的技能:")
+        for info in routing_info:
+            if info["route_format"] != "standard":
+                print(f"  - {info['name']}: {info['route_format']}")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="skill-creator-pro 输出校验脚本（硬门禁，校验不通过就报错）"
     )
-    parser.add_argument("skill_path", help="技能目录路径")
+    parser.add_argument("skill_path", nargs="?", help="技能目录路径")
     parser.add_argument("--mode", choices=["create", "optimize", "review", "test"], default="optimize",
                         help="校验模式（默认optimize）")
     parser.add_argument("--skill-type", choices=["auto", "general", "domain"], default="auto",
                         help="技能类型：auto自动检测/general通用技能（执行特定领域残留检查）/domain特定领域技能（跳过该检查）")
     parser.add_argument("--skill-path", dest="skill_path_arg", help=argparse.SUPPRESS)
+    parser.add_argument("--check-consistency", dest="check_consistency", metavar="PARENT_DIR",
+                        help="多技能路由一致性检查（扫描指定目录下的所有技能，检查路由格式是否统一）")
 
     args = parser.parse_args()
+
+    # 多技能路由一致性检查模式
+    if args.check_consistency:
+        parent_dir = args.check_consistency
+        if not os.path.isdir(parent_dir):
+            print(f"❌ 目录不存在: {parent_dir}", file=sys.stderr)
+            sys.exit(1)
+        passed = check_routing_consistency(parent_dir)
+        sys.exit(0 if passed else 1)
 
     # 处理 --skill-path 参数（create_skill.py 调用时用）
     skill_path = args.skill_path or args.skill_path_arg

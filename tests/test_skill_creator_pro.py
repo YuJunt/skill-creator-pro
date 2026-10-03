@@ -51,6 +51,7 @@ description: "测试技能，用于单元测试。触发词：测试。适用于
 | 模式 | 触发词 | must_read |
 |------|--------|-----------|
 | 测试 | 测试、test | references/test-guide.md |
+| 优化 | 优化、optimize | references/test-guide.md |
 
 ### 模糊请求处理
 请求模糊时询问用户。

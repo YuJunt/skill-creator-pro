@@ -240,7 +240,8 @@ class SecurityScanner:
                 "allowed_files": data.get("allowed_files", []),
                 "allowed_patterns": data.get("allowed_patterns", []),
             }
-        except Exception:
+        except Exception as e:
+            print(f"  ⚠️ 容错处理: {e}", file=sys.stderr)
             return {"allowed_files": [], "allowed_patterns": []}
 
     def _is_skill_whitelisted(self, rel_path: str, message: str) -> bool:
