@@ -58,6 +58,7 @@ def measure_script(script_path, args=None, runs=5, timeout=60):
                 [sys.executable, str(script_path)] + args,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=timeout,
                 env={**os.environ, "PYTHONUNBUFFERED": "1"}
             )

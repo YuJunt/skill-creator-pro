@@ -94,7 +94,7 @@ def run_script(script_name, *args, cwd=None):
     """运行脚本并返回结果"""
     script_path = os.path.join(SCRIPTS_DIR, script_name)
     cmd = [sys.executable, script_path] + list(args)
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or SKILL_ROOT, timeout=30)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or SKILL_ROOT, timeout=30, encoding="utf-8")
     return result
 
 
@@ -118,7 +118,7 @@ class TestScriptBasics:
         """所有脚本必须能通过py_compile"""
         script_path = os.path.join(SCRIPTS_DIR, script)
         result = subprocess.run([sys.executable, "-m", "py_compile", script_path],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, encoding="utf-8")
         assert result.returncode == 0, f"{script} 语法错误: {result.stderr}"
 
     @pytest.mark.parametrize("script", [

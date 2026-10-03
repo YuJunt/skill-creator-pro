@@ -26,7 +26,7 @@ SCRIPTS_DIR = os.path.join(SKILL_ROOT, "scripts")
 def run_script(script_name, *args, cwd=None):
     """运行脚本并返回CompletedProcess"""
     cmd = [sys.executable, os.path.join(SCRIPTS_DIR, script_name)] + list(args)
-    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or SKILL_ROOT)
+    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or SKILL_ROOT, encoding="utf-8")
 
 
 # ============================================================
