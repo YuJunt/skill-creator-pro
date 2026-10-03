@@ -27,11 +27,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
-      - name: L1-L3: pytest测试套件
+      - name: "L1-L3: pytest测试套件"
         run: |
           python -m pytest tests/ -v --tb=short
 
-      - name: L4: 场景矩阵测试（3哲学）
+      - name: "L4: 场景矩阵测试（3哲学）"
         run: |
           mkdir -p /tmp/e2e-l4
           for PHIL in capability process mixed; do
@@ -40,25 +40,25 @@ jobs:
             python scripts/validate_skill.py /tmp/e2e-l4/test-$PHIL
           done
 
-      - name: L5: 创建技能质量验证
+      - name: "L5: 创建技能质量验证"
         run: |
           mkdir -p /tmp/e2e-l5
           for PHIL in capability process mixed; do
             echo "--- 验证 $PHIL 模式创建的技能 ---"
             python scripts/create_skill.py create quality-$PHIL --path /tmp/e2e-l5 --philosophy $PHIL
             python scripts/audit_skill.py /tmp/e2e-l5/quality-$PHIL --json | python -c "
-import sys,json
-d=json.load(sys.stdin)
-print(f'  总分: {d.get(\"total_score\",0)}/{d.get(\"total_possible\",36)}')
-tl=d.get('three_layer',{}).get('必备层',{})
-print(f'  必备层: {tl.get(\"passed\",0)}/{tl.get(\"total\",0)}')
-if tl.get('passed',0) < tl.get('total',0):
-    print('::error::必备层未全部达标')
-    sys.exit(1)
-"
+          import sys,json
+          d=json.load(sys.stdin)
+          print(f'  总分: {d.get(\"total_score\",0)}/{d.get(\"total_possible\",36)}')
+          tl=d.get('three_layer',{}).get('必备层',{})
+          print(f'  必备层: {tl.get(\"passed\",0)}/{tl.get(\"total\",0)}')
+          if tl.get('passed',0) < tl.get('total',0):
+          print('::error::必备层未全部达标')
+          sys.exit(1)
+          "
           done
 
-      - name: L6: 质量门禁+红队测试
+      - name: "L6: 质量门禁+红队测试"
         run: |
           echo "--- 测试不合格输入拦截 ---"
           mkdir -p /tmp/e2e-l6/no-md
@@ -79,8 +79,8 @@ if tl.get('passed',0) < tl.get('total',0):
           done
           echo "✅ 危险请求全部拦截"
 
-      - name: L7: 基准测试（有技能vs无技能）
-        run: |
+          - name: "L7: 基准测试（有技能vs无技能）"
+          run: |
           mkdir -p /tmp/e2e-l7/with-skill /tmp/e2e-l7/without-skill
           
           # 有技能
@@ -100,18 +100,18 @@ if tl.get('passed',0) < tl.get('total',0):
             echo "::warning::技能未提升质量"
           fi
 
-      - name: 运行综合测试脚本
-        run: |
+          - name: 运行综合测试脚本
+          run: |
           bash scripts/run_all_tests.sh --quick --report
 
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        with:
+          - name: Upload test report
+          uses: actions/upload-artifact@v4
+          with:
           name: e2e-test-report
           path: test-report.md
 
-      - name: Create test summary
-        run: |
+          - name: Create test summary
+          run: |
           echo "## 端到端测试报告" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- L1-L3: pytest测试套件 ✅" >> $GITHUB_STEP_SUMMARY
