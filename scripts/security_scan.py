@@ -146,7 +146,8 @@ DATA_LEAK_PATTERNS = [
     (r"(?i)(api[_-]?key|secret[_-]?key?|token|private[_-]?key|access[_-]?key)\s*[:=]\s*['\"][^'\"]{8,}['\"]",
      "硬编码密钥/令牌", "使用环境变量，不要在代码中硬编码"),
     (r"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----", "硬编码私钥", "使用密钥管理服务，不要硬编码私钥"),
-    (r"(?i)(webhook|requestbin|ngrok|beeceptor|pipedream)", "外部数据接收服务：可能用于数据外泄",
+    (r"(?i)https?://[^\s'\"()]*?(?:webhook|requestbin|ngrok|beeceptor|pipedream)[^\s'\"()]*",
+     "外部webhook URL：可能用于数据外泄",
      "确认webhook用途，避免将敏感数据发送到不可信服务"),
     (r"(?i)(send|post|upload|transmit).*(to\s+)?(external|third[-\s]?party|remote)\s+(url|server|endpoint)",
      "数据外发：将数据发送到外部服务", "确认数据外发的必要性和安全性"),
@@ -343,6 +344,18 @@ class SecurityScanner:
                     # 技能级白名单豁免
                     if self._is_skill_whitelisted(rel_path, message):
                         continue
+                    # 环境变量读取豁免：os.environ.get/getenv 且无真实默认值 → 安全实践，跳过
+                    if category == "data_leak":
+                        env_m = re.search(
+                            r"os\.(?:environ\.get|getenv)\(\s*['\"][^'\"]*['\"]\s*(?:,\s*['\"]([^'\"]*)['\"]\s*)?\)",
+                            line,
+                        )
+                        if env_m:
+                            default = (env_m.group(1) or "").strip()
+                            if not default or len(default) < 8 or default.startswith(("<", "$")):
+                                continue
+                            # 默认值疑似真实凭据 → 保留命中并提示清空
+                            message = f"{message}（os.environ.get 默认值疑似真实凭据，应清空为 \"\"）"
                     snippet = line.strip()[:120]
                     # 确定严重度
                     if category == "injection":
