@@ -36,14 +36,14 @@ allowed-tools:
 > **会话保持（防止长对话丢失技能状态）**：一旦技能被触发，在后续对话中持续保持激活状态，直到用户明确说"退出技能"或"切换到无关话题"。**每轮回复都必须输出路由行，即使是简短回复也不能省略。**
 >
 > **路由行输出硬验证（脚本实现，非文字说明）**：
-> - 每轮输出路由行后，必须运行 `python3 scripts/runtime_guard.py route --mode "{模式}" --line "🔀 路由: skill-creator-pro · {模式} · {一句话重点}"` 记录并校验格式
+> - 每轮输出路由行后，必须运行 `python3 scripts/runtime_guard.py route --mode "{模式}" --line "🔀 路由: skill-creator-pro · {模式} · {一句话重点}"` 记录并校验格式（`--mode` 填中文模式名；gate 的 `--mode` 则填英文枚举 create/optimize/review/test，二者不同）
 > - `--line` 参数传入完整路由行文本，脚本自动校验格式（前缀/技能名/模式合法）
-> - 交付前必须运行 `python3 scripts/runtime_guard.py gate --mode {模式}` 检查所有门禁
+> - 交付前必须运行 `python3 scripts/runtime_guard.py gate --mode {英文模式：create/optimize/review/test}` 检查所有门禁
 > - `gate` 命令检查4个硬门禁：①路由行是否输出 ②路由行格式是否正确 ③关键脚本是否调用 ④关键文档是否阅读
 > - 任何门禁不通过，`gate` 命令返回非0退出码，**不能交付**
 > - 如果路由行输出为0次，视为**严重偷懒**（critical级别），触发路由机制完全失效，必须重新执行
 
-> **版本**: v2.1.0 | **最低Python版本**: 3.8+ | **许可证**: MIT
+> **版本**: v2.1.1 | **最低Python版本**: 3.8+ | **许可证**: MIT
 >
 > **设计哲学**: 混合型（Mixed）——工具脚本（validate/audit/init）+ 方法论（36项清单+最佳实践）结合。适合需要工具+判断的复杂技能创建任务。
 
@@ -83,7 +83,7 @@ allowed-tools:
 1. **无路由的输出视为无效**：任何输出前必须先输出路由声明（`🔀 路由: skill-creator-pro · {模式} · target=...; scope=...; reason=...`）。`create_skill.py`运行时会自动输出路由行并记录到runtime_guard。
 2. **必须运行编排脚本**：新建/优化/评审/测试**必须**通过 `python3 scripts/create_skill.py <mode> <skill-path>`，禁止直接调用validate_skill.py/audit_skill.py等单个脚本（会绕过runtime_guard记录）。
 3. **must_read必须阅读并记录**：路由确定后，必须阅读对应模式的must_read文档，阅读后运行 `python3 scripts/runtime_guard.py track --step <文档名> --action doc --type doc` 记录。输出中必须引用文档具体内容，否则视为未读取。
-4. **交付前必须跑门禁**：交付前必须运行 `python3 scripts/runtime_guard.py gate --mode {模式}`，4项门禁（路由行/格式/关键脚本/关键文档）全部通过才能交付。
+4. **交付前必须跑门禁**：交付前必须运行 `python3 scripts/runtime_guard.py gate --mode {英文模式：create/optimize/review/test}`，4项门禁（路由行/格式/关键脚本/关键文档）全部通过才能交付。
 5. **校验失败不允许继续**：create_skill.py校验失败时必须修复后重新运行，不允许绕过。
 
 ---
@@ -108,7 +108,7 @@ allowed-tools:
 | 优化校验 | `python3 scripts/create_skill.py optimize <skill-path>` | **一键完成**规范校验+深度审计+安全扫描+输出校验 |
 | 深度评审 | `python3 scripts/create_skill.py review <skill-path>` | 一键评审+36项审计 |
 | 端到端测试 | `python3 scripts/create_skill.py test <skill-path>` | 一键测试+冒烟+E2E |
-| **交付前门禁** | `python3 scripts/runtime_guard.py gate --mode {模式}` | **必须运行**，检查路由/脚本/文档是否全部完成 |
+| **交付前门禁** | `python3 scripts/runtime_guard.py gate --mode {英文模式：create/optimize/review/test}` | **必须运行**，检查路由/脚本/文档是否全部完成 |
 
 > 完整命令表（含内部脚本说明/运行时保障9子命令/退出码）见 `references/command-reference.md`；防偷懒机制详解见 `references/anti-laziness-guide.md`。
 
@@ -291,6 +291,7 @@ allowed-tools:
 
 ## 版本
 
+- v2.1.1（security_scan 误报修复：webhook URL-only + env 豁免）
 - v2.1.0（知行合一般）
 - 核心：修复14项"知行不一"问题，自身遵循所有最佳实践
 - 新增：设计哲学/自由度标注/验证循环/must_read机制/技能组合
